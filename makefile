@@ -12,7 +12,7 @@ CC = g++
 #Flags for debugging
 NVCCFLAGS = -c -G --compiler-options -Wall --compiler-options -g
 
-OBJS = wrappers.o main.o csvparser.o
+OBJS = wrappers.o main.o csvparser.o h_main.o d_main.o
 .SUFFIXES: .cu .o .h
 .cu.o:
 	$(NVCC) $(CC_FLAGS) $(NVCCFLAGS) $(GENCODE_FLAGS) $< -o $@
@@ -20,9 +20,14 @@ OBJS = wrappers.o main.o csvparser.o
 main: $(OBJS)
 	$(CC) $(OBJS) -L/usr/local/cuda/lib64 -lcuda -lcudart -o main
 
-main.o: main.cu csvparser.h CHECK.h wrappers.cu main.h
+main.o: main.cu csvparser.h CHECK.h wrappers.cu main.h h_main.h d_main.h
 
 csvparser.o: csvparser.cu csvparser.h CHECK.h
+
+h_main.o: h_main.cu h_main.h CHECK.h
+
+d_main.o: d_main.cu d_main.h CHECK.h
+
 
 wrappers.o: wrappers.cu wrappers.h
 
