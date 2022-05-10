@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "csvparser.cu"
+#include "csvparser.h"
 
 #ifdef __cplusplus
 extern "C" {
