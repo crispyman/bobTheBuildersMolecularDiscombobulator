@@ -16,12 +16,12 @@
 
 int getMoleculeLength(CsvRow * csvRow);
 atom * readMolecule(CsvParser * csvParser, int* atomCnt);
-const int padding = 10;
+const int padding = 100;
 
 int main(int argc, char * argv[])
 {
 
-    char* file = "h2o2.xyz";
+    char* file = "benzene_2.2.xyz";
     char delim = ' ';
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
     int numAtoms;
@@ -64,6 +64,10 @@ int main(int argc, char * argv[])
     float gridSpacing = 0.001;
 
     discombob_on_cpu(energyGrid, dimX, dimY, dimZ, gridSpacing, molecule, numAtoms);
+
+    for (int i = 0; i < dimX * dimY * dimZ; i++){
+        printf("%f, ", energyGrid[i]);
+    }
 
 
 
