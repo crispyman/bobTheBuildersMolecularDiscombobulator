@@ -9,7 +9,7 @@ void discombob_on_cpu(float * energyGrid, int dimX, int dimY, int dimZ, float gr
         float z = gridSpacing * (float)k;
         for (j = 0; j < dimY; j++) {
             float y = gridSpacing * (float)j;
-            for (i = 0; i<dimX; i++){
+            for (i = 0; i < dimX; i++){
                 float x = gridSpacing * (float)i;
                 float energy = 0.0f;
                 for (n = 0; n<atomArrDim; n+=4){
@@ -22,5 +22,4 @@ void discombob_on_cpu(float * energyGrid, int dimX, int dimY, int dimZ, float gr
             }
         }
     }
-
 }

@@ -20,9 +20,10 @@ const int padding = 10;
 
 int main(int argc, char * argv[])
 {
-
+    // Get the file name and parse it. 
     char* file = "h2o2.xyz";
     char delim = ' ';
+    // Make the parser giving the correct delimeter.
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
     int numAtoms;
     atom * atoms = readMolecule(csvParser, &numAtoms);
