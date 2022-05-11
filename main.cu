@@ -16,18 +16,19 @@
 
 int getMoleculeLength(CsvRow * csvRow);
 atom * readMolecule(CsvParser * csvParser, int* atomCnt);
-const int padding = 100;
+const int padding = 1;
 
 int main(int argc, char * argv[])
 {
 
-    char* file = "benzene_2.2.xyz";
+    char* file = "h2o2.xyz";
+    float gridSpacing = 0.1;
     char delim = ' ';
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
     int numAtoms;
     atom * atoms = readMolecule(csvParser, &numAtoms);
     CsvParser_destroy(csvParser);
-    float * molecule = (float *) malloc(sizeof(float) * 3 * numAtoms);
+    float * molecule = (float *) malloc(sizeof(float) * 4 * numAtoms);
     float maxX = 0;
     float maxY = 0;
     float maxZ = 0;
@@ -38,7 +39,7 @@ int main(int argc, char * argv[])
 
     for (int i = 0; i < numAtoms; i++){
         printf("%s, %f, %f, %f\n", atoms[i].name, atoms[i].x, atoms[i].y, atoms[i].z);
-        molecule[i * 3] = atoms[i].x;
+        molecule[i * 4] = atoms[i].x;
         if (atoms[i].x > maxX)
             maxX = atoms[i].x;
         else if (atoms[i].x > maxX)
@@ -55,13 +56,19 @@ int main(int argc, char * argv[])
             maxZ = atoms[i].z;
         else if (atoms[i].z > maxZ)
             minZ = atoms[i].z;
+
+        if (atoms[i].name[0] == 'H')
+            molecule[i * 4 + 3] = 1.0;
+        else if (atoms[i].name[0] == 'O')
+            molecule[i * 4 + 3] = -2.0;
     }
-    int dimX  = (int) (abs(maxX) + padding) + (int) (abs(minX) + padding);
-    int dimY  = (int) (abs(maxY) + padding) + (int) (abs(minY) + padding);
-    int dimZ = (int) (abs(maxZ) + padding) + (int) (abs(minZ) + padding);
+
+    int dimX  = (int) (abs(maxX) + padding) + (int) (abs(minX) + padding) * (1/gridSpacing);
+    int dimY  = (int) (abs(maxY) + padding) + (int) (abs(minY) + padding) * (1/gridSpacing);
+    int dimZ = (int) (abs(maxZ) + padding) + (int) (abs(minZ) + padding)* (1/gridSpacing);
 
     float * energyGrid = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
-    float gridSpacing = 0.001;
+    printf("%d\n", dimX * dimY * dimZ);
 
     discombob_on_cpu(energyGrid, dimX, dimY, dimZ, gridSpacing, molecule, numAtoms);
 

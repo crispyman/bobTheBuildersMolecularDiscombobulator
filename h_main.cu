@@ -16,7 +16,7 @@ void discombob_on_cpu(float * energyGrid, int dimX, int dimY, int dimZ, float gr
                     float dx = x - atoms[n];
                     float dy = y - atoms[n+1];
                     float dz = z - atoms[n+2];
-                    energy += atoms[n+3]/sqrt(dx * dx + dy * dy + dz * dz);
+                    energy += atoms[n+3]/sqrt(dx*dx + dy*dy + dz*dz);
                 }
                 energyGrid[dimX*dimY*k + dimX*j + i] = energy;
             }
