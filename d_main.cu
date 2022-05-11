@@ -19,6 +19,7 @@ float * d_discombobulate(energyGrid * energyGrid, float * atoms, int numAtoms) {
     /* 
         TODO: Write host code to set up the cuda kernel, and launch d_discombobulateKernel
     */
+    return NULL;
 }
 
 /* 

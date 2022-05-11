@@ -20,7 +20,7 @@ OBJS = wrappers.o main.o csvparser.o h_main.o d_main.o
 main: $(OBJS)
 	$(CC) $(OBJS) -L/usr/local/cuda/lib64 -lcuda -lcudart -o main
 
-main.o: main.cu csvparser.h CHECK.h wrappers.cu main.h h_main.h d_main.h
+main.o: main.cu csvparser.h CHECK.h wrappers.cu main.h h_main.h d_main.h config.h
 
 csvparser.o: csvparser.cu csvparser.h CHECK.h
 
