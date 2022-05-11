@@ -11,12 +11,12 @@
 #include "main.h"
 #include "d_main.h"
 #include "h_main.h"
+#include "config.h"
 
 
 
 int getMoleculeLength(CsvRow * csvRow);
 atom * readMolecule(CsvParser * csvParser, int* atomCnt);
-const int padding = 1;
 
 int main(int argc, char * argv[])
 {
@@ -63,9 +63,9 @@ int main(int argc, char * argv[])
             molecule[i * 4 + 3] = -2.0;
     }
 
-    int dimX  = (int) (abs(maxX) + padding) + (int) (abs(minX) + padding) * (1/gridSpacing);
-    int dimY  = (int) (abs(maxY) + padding) + (int) (abs(minY) + padding) * (1/gridSpacing);
-    int dimZ = (int) (abs(maxZ) + padding) + (int) (abs(minZ) + padding)* (1/gridSpacing);
+    int dimX  = (int) (abs(maxX) + PADDING) + (int) (abs(minX) + PADDING) * (1/gridSpacing);
+    int dimY  = (int) (abs(maxY) + PADDING) + (int) (abs(minY) + PADDING) * (1/gridSpacing);
+    int dimZ = (int) (abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING)* (1/gridSpacing);
 
     float * energyGrid = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     printf("%d\n", dimX * dimY * dimZ);
