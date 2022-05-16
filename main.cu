@@ -29,15 +29,12 @@ int main(int argc, char * argv[])
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
     // Read the molecule file and write the atoms to an array of atoms.
     atom * atoms = readMolecule(csvParser, &numAtoms);
+    // Print the whole list of atoms. 
+    // printAtoms(atoms, numAtoms);
 
-    printAtoms(atoms, numAtoms);
 
-
-    
-    /* float gridSpacing = 0.1;
-    // Make the parser giving the correct delimeter.
-    int numAtoms;
     CsvParser_destroy(csvParser);
+    // Allocate the molecule array. 
     float * molecule = (float *) malloc(sizeof(float) * 4 * numAtoms);
     float maxX = 0;
     float maxY = 0;
@@ -48,7 +45,11 @@ int main(int argc, char * argv[])
     float minZ = 0;
 
     for (int i = 0; i < numAtoms; i++){
-        printf("%s, %f, %f, %f\n", atoms[i].name, atoms[i].x, atoms[i].y, atoms[i].z);
+        printf("%s, %f, %f, %f, %f\n", atoms[i].name, 
+                                    atoms[i].x, 
+                                    atoms[i].y, 
+                                    atoms[i].z,
+                                    atoms[i].charge);
         molecule[i * 4] = atoms[i].x;
         if (atoms[i].x > maxX)
             maxX = atoms[i].x;
@@ -73,24 +74,18 @@ int main(int argc, char * argv[])
             molecule[i * 4 + 3] = -2.0;
     }
 
-    int dimX  = (int) (abs(maxX) + PADDING) + (int) (abs(minX) + PADDING) * (1/gridSpacing);
-    int dimY  = (int) (abs(maxY) + PADDING) + (int) (abs(minY) + PADDING) * (1/gridSpacing);
-    int dimZ = (int) (abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING)* (1/gridSpacing);
+    int dimX  = (int) (abs(maxX) + PADDING) + (int) (abs(minX) + PADDING) * (1/GRIDSPACING);
+    int dimY  = (int) (abs(maxY) + PADDING) + (int) (abs(minY) + PADDING) * (1/GRIDSPACING);
+    int dimZ = (int) (abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING) * (1/GRIDSPACING);
 
     float * energyGrid = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
-    printf("%d\n", dimX * dimY * dimZ);
+    // printf("%d\n", dimX * dimY * dimZ);
 
-    discombob_on_cpu(energyGrid, dimX, dimY, dimZ, gridSpacing, molecule, numAtoms);
-
-    for (int i = 0; i < dimX * dimY * dimZ; i++){
-        printf("%f, ", energyGrid[i]);
-    }
-
-
+    discombob_on_cpu(energyGrid, dimX, dimY, dimZ, GRIDSPACING, molecule, numAtoms);
 
     free(atoms);
     free(molecule);
-    free(energyGrid); */
+    free(energyGrid);
 }
 
 /* 
