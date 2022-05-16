@@ -17,6 +17,8 @@
 
 int getMoleculeLength(CsvRow * csvRow);
 atom * readMolecule(CsvParser * csvParser, int* atomCnt);
+int checkGrid(float *ref, float *check, int gridLength);
+
 
 int main(int argc, char * argv[])
 {
@@ -67,20 +69,23 @@ int main(int argc, char * argv[])
     int dimY  = (int) (abs(maxY) + PADDING) + (int) (abs(minY) + PADDING) * (1/gridSpacing);
     int dimZ = (int) (abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING)* (1/gridSpacing);
 
-    float * energyGrid = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    float * energyGrid_cpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     printf("%d\n", dimX * dimY * dimZ);
 
-    discombob_on_cpu(energyGrid, dimX, dimY, dimZ, gridSpacing, molecule, numAtoms);
+    discombob_on_cpu(energyGrid_cpu, dimX, dimY, dimZ, gridSpacing, molecule, numAtoms);
 
-    for (int i = 0; i < dimX * dimY * dimZ; i++){
-        printf("%f, ", energyGrid[i]);
-    }
+    float * energyGrid_gpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
 
 
+    d_discombobulate(energyGrid_gpu, dimX, dimY, dimZ, gridSpacing, molecule, numAtoms);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
 
     free(atoms);
     free(molecule);
-    free(energyGrid);
+    free(energyGrid_cpu);
+    free(energyGrid_gpu);
+
 }
 
 
@@ -115,4 +120,22 @@ atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
     }
     return atoms;
 
+}
+
+
+int checkGrid(float *ref, float *check, int gridLength) {
+    float*correct = (float *) ref;
+    float*output = (float *) check;
+    for (int i = 0; i < gridLength; i++) {
+        if (output[i] != correct[i]) {
+            printf("Incorrect value at [%d]\n", i);
+            printf("%f != %f\n", output[i], correct[i]);
+
+            //unixError(errorMsg);
+            return 1;
+        }
+    }
+
+    printf("image is correct\n");
+    return 0;
 }
