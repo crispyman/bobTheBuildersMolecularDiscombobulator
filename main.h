@@ -7,4 +7,3 @@ typedef struct atom {
     float y;
     float z;
 } atom;
-
