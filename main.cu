@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include <stdlib.h>
+#include "molecule.h"
 #include "csvparser.h"
 #include "main.h"
 #include "d_main.h"
@@ -14,20 +15,28 @@
 #include "config.h"
 
 
-
 int getMoleculeLength(CsvRow * csvRow);
 atom * readMolecule(CsvParser * csvParser, int* atomCnt);
+void printAtoms(atom * atoms, int numAtoms);
 
 int main(int argc, char * argv[])
 {
     // Get the file name and parse it. 
-    char* file = "h2o2.xyz";
-    float gridSpacing = 0.1;
     char delim = ' ';
-    // Make the parser giving the correct delimeter.
+    int numAtoms = 0;
+
+    char* file = "stripped_alinin.pqr";
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
-    int numAtoms;
+    // Read the molecule file and write the atoms to an array of atoms.
     atom * atoms = readMolecule(csvParser, &numAtoms);
+
+    printAtoms(atoms, numAtoms);
+
+
+    
+    /* float gridSpacing = 0.1;
+    // Make the parser giving the correct delimeter.
+    int numAtoms;
     CsvParser_destroy(csvParser);
     float * molecule = (float *) malloc(sizeof(float) * 4 * numAtoms);
     float maxX = 0;
@@ -81,39 +90,78 @@ int main(int argc, char * argv[])
 
     free(atoms);
     free(molecule);
-    free(energyGrid);
+    free(energyGrid); */
 }
 
+/* 
+    getMoleculeLength
+    Assigns the number of atoms in the molecule to atomCount
 
-int getMoleculeLength(CsvRow * csvRow) {
-    const char **rowFields = CsvParser_getFields(csvRow);
-    return strtol(rowFields[0], NULL, 10);
-}
-
-atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
-    CsvRow *csvRow = CsvParser_getRow(csvParser);
-    int numAtoms = getMoleculeLength(csvRow);
-    *atomCnt = numAtoms;
-    CsvParser_destroy_row(csvRow);
-
-    csvRow = CsvParser_getRow(csvParser);
-    CsvParser_destroy_row(csvRow);
-
-    atom *atoms = (atom *) calloc(numAtoms, sizeof(atom));
-    for (int j = 0; j < numAtoms; j++) {
-        csvRow = CsvParser_getRow(csvParser);
-        const char **rowFields = CsvParser_getFields(csvRow);
-        //if (CsvParser_getNumFields(csvRow) != 4 || rowFields[0][0] < 'A' || rowFields[0][0] > 'Z') {
-        //    return NULL;
-        //}
-        assert(CsvParser_getNumFields(csvRow) == 4);
-        strcpy(atoms[j].name, rowFields[0]);
-        atoms[j].x = strtof(rowFields[1], NULL);
-        atoms[j].y = strtof(rowFields[2], NULL);
-        atoms[j].z = strtof(rowFields[3], NULL);
-        CsvParser_destroy_row(csvRow);
-
+    csvParser: A CsvParser that is parsing the file  that describes the molecule.
+    atomCount: The number of atoms in the molecule. 
+*/
+void getMoleculeLength(CsvParser * csvParser, int * atomCount) {
+    // Make a copy of the csv parser. 
+    int count = 0;
+    char delim = csvParser->delimiter_;
+    char * file = csvParser->filePath_;
+    CsvParser * countParser = CsvParser_new(file, &delim, 0);
+    
+    CsvRow * row = CsvParser_getRow(countParser); 
+    while (strcmp(row->fields_[0], "END") != 0) {
+        if (strcmp(row->fields_[0], "ATOM") == 0) {
+            count++;
+        }
+        row = CsvParser_getRow(countParser);
     }
-    return atoms;
+    *atomCount = count;
+}
 
+/* 
+    readMolecule
+    Reads the molecule file in the parser, parses it and makes an array of atoms.
+    
+    csvParser: A parser to parse the CSV file that contains data about the molecule.
+    atomCnt: A variable to return the number of atoms in the molecule. 
+*/
+atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
+    // Get the number of atoms in the molecule. 
+    getMoleculeLength(csvParser, atomCnt);
+    // Allocate an array of atoms.
+    atom * atoms = (atom *) calloc(*atomCnt, sizeof(atom));
+    // Get the first row of the file. 
+    CsvRow * csvRow = CsvParser_getRow(csvParser); 
+    // printf("Number of atoms: %d", *atomCnt);
+    // Loop through all lines in the file until the END record. 
+
+    // Loop through the row and set all of the relevent Atom fields. 
+    for (int i = 0; i < *atomCnt; i++){
+        // Skip any record that is not an atom.
+        if (strcmp(*CsvParser_getFields(csvRow), "ATOM") != 0) {
+        
+            strcpy(atoms[i].name, csvRow->fields_[2]);
+            atoms[i].x = strtof(csvRow->fields_[4], NULL);
+            atoms[i].y = strtof(csvRow->fields_[5], NULL);
+            atoms[i].z = strtof(csvRow->fields_[6], NULL);
+            atoms[i].charge = strtof(csvRow->fields_[7], NULL);
+            CsvParser_destroy_row(csvRow);
+            csvRow = CsvParser_getRow(csvParser);
+        }
+    }
+
+    return atoms;
+}
+
+
+/* 
+    Prints an atom. 
+*/
+void printAtoms(atom * atoms, int numAtoms) {
+    for ( int i = 0; i < numAtoms; i++) {
+        printf("Name: %s,   ", atoms[i].name);
+        printf("X: %f, ", atoms[i].x);
+        printf("Y: %f, ", atoms[i].y);
+        printf("Z: %f, ", atoms[i].z);
+        printf("Charge: %f, ", atoms[i].charge);
+    }
 }
