@@ -134,19 +134,26 @@ atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
     // printf("Number of atoms: %d", *atomCnt);
     // Loop through all lines in the file until the END record. 
 
-    // Loop through the row and set all of the relevent Atom fields. 
     for (int i = 0; i < *atomCnt; i++){
         // Skip any record that is not an atom.
-        if (strcmp(*CsvParser_getFields(csvRow), "ATOM") != 0) {
-        
+        csvRow = CsvParser_getRow(csvParser);
+        // printf("Name CSV: %s\nx-coord: %f\ny-coord: %f\nz-coord: %f\ncharge: %f\n", csvRow->fields_[2],
+        //                                                                             strtof(csvRow->fields_[5], NULL),  
+        //                                                                             strtof(csvRow->fields_[6], NULL), 
+        //                                                                             strtof(csvRow->fields_[7], NULL),  
+        //                                                                              strtof(csvRow->fields_[8], NULL));
+
+        if (strcmp(*CsvParser_getFields(csvRow), "ATOM") == 0) {
+            
             strcpy(atoms[i].name, csvRow->fields_[2]);
-            atoms[i].x = strtof(csvRow->fields_[4], NULL);
-            atoms[i].y = strtof(csvRow->fields_[5], NULL);
-            atoms[i].z = strtof(csvRow->fields_[6], NULL);
-            atoms[i].charge = strtof(csvRow->fields_[7], NULL);
+            atoms[i].x = strtof(csvRow->fields_[5], NULL);
+            atoms[i].y = strtof(csvRow->fields_[6], NULL);
+            atoms[i].z = strtof(csvRow->fields_[7], NULL);
+            atoms[i].charge = strtof(csvRow->fields_[8], NULL);
             CsvParser_destroy_row(csvRow);
-            csvRow = CsvParser_getRow(csvParser);
+
         }
+        // printf("Name: %s\nx-coord: %f\ny-coord: %f\nz-coord: %f\ncharge: %f\n", atoms[i].name, atoms[i].x, atoms[i].y, atoms[i].z, atoms[i].charge);
     }
 
     return atoms;
@@ -158,10 +165,10 @@ atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
 */
 void printAtoms(atom * atoms, int numAtoms) {
     for ( int i = 0; i < numAtoms; i++) {
-        printf("Name: %s,   ", atoms[i].name);
-        printf("X: %f, ", atoms[i].x);
-        printf("Y: %f, ", atoms[i].y);
-        printf("Z: %f, ", atoms[i].z);
-        printf("Charge: %f, ", atoms[i].charge);
+        printf("Name: %s, \n", atoms[i].name);
+        printf("X: %f, \n", atoms[i].x);
+        printf("Y: %f, \n", atoms[i].y);
+        printf("Z: %f, \n", atoms[i].z);
+        printf("Charge: %f, \n", atoms[i].charge);
     }
 }
