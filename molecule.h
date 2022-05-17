@@ -16,6 +16,7 @@ typedef struct atom {
     float x;
     float y;
     float z;
+    float charge;
 } atom;
 
 typedef struct molecule {

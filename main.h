@@ -1,4 +1,4 @@
-//
+/* //
 // Created by andrewiii on 5/10/22.
 //
 typedef struct atom {
@@ -7,3 +7,4 @@ typedef struct atom {
     float y;
     float z;
 } atom;
+ */
