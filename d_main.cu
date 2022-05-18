@@ -57,8 +57,8 @@ __global__ void d_discombulateKernel(float * energyGrid, dim3 grid, float gridSp
     */
 
     int i, j, n;
-    if (blockDim.x * blockIdx.x + threadIdx.x < grid.x) {
-        float z = gridSpacing * (threadIdx.x + blockIdx.x * gridDim.x);
+    if (blockDim.x * blockIdx.x + threadIdx.x < grid.z) {
+        float z = gridSpacing * (threadIdx.x + blockIdx.x * blockDim.x);
         int atomArrDim = numAtoms * 4;
         for (j = 0; j < grid.y; j++) {
             float y = gridSpacing * (float) j;

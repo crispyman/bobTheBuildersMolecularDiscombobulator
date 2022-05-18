@@ -65,16 +65,18 @@ int main(int argc, char * argv[])
             molecule[i * 4 + 3] = -2.0;
     }
 
-    int dimX  = (int) (abs(maxX) + PADDING) + (int) (abs(minX) + PADDING) * (1/gridSpacing);
-    int dimY  = (int) (abs(maxY) + PADDING) + (int) (abs(minY) + PADDING) * (1/gridSpacing);
-    int dimZ = (int) (abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING)* (1/gridSpacing);
+    int dimX  = (int) ((abs(maxX) + PADDING) + (int) (abs(minX) + PADDING)) * (1/gridSpacing);
+    int dimY  = (int) ((abs(maxY) + PADDING) + (int) (abs(minY) + PADDING)) * (1/gridSpacing);
+    int dimZ = (int) ((abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING))* (1/gridSpacing);
 
     float * energyGrid_cpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    assert(energyGrid_cpu);
     printf("%d\n", dimX * dimY * dimZ);
 
     discombob_on_cpu(energyGrid_cpu, dimX, dimY, dimZ, gridSpacing, molecule, numAtoms);
 
     float * energyGrid_gpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    assert(energyGrid_gpu);
 
 
     d_discombobulate(energyGrid_gpu, dimX, dimY, dimZ, gridSpacing, molecule, numAtoms);
