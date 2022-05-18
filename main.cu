@@ -47,13 +47,13 @@ int main(int argc, char * argv[])
         else if (atoms[i].x > maxX)
             minX = atoms[i].x;
 
-        molecule[i * 3 + 1] = atoms[i].y;
+        molecule[i * 4 + 1] = atoms[i].y;
         if (atoms[i].y > maxY)
             maxY = atoms[i].y;
         else if (atoms[i].y > maxY)
             minY = atoms[i].y;
 
-        molecule[i * 3 + 2] = atoms[i].z;
+        molecule[i * 4 + 2] = atoms[i].z;
         if (atoms[i].z > maxZ)
             maxZ = atoms[i].z;
         else if (atoms[i].z > maxZ)
