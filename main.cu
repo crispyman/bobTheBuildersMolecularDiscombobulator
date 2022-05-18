@@ -15,13 +15,16 @@
 #include "config.h"
 
 
+
 int getMoleculeLength(CsvRow * csvRow);
 atom * readMolecule(CsvParser * csvParser, int* atomCnt);
+int checkGrid(float *ref, float *check, int gridLength);
+
 void printAtoms(atom * atoms, int numAtoms);
 
 int main(int argc, char * argv[])
 {
-    // Get the file name and parse it. 
+    // Get the file name and parse it.
     char delim = ' ';
     int numAtoms = 0;
 
@@ -29,12 +32,12 @@ int main(int argc, char * argv[])
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
     // Read the molecule file and write the atoms to an array of atoms.
     atom * atoms = readMolecule(csvParser, &numAtoms);
-    // Print the whole list of atoms. 
+    // Print the whole list of atoms.
     // printAtoms(atoms, numAtoms);
 
 
     CsvParser_destroy(csvParser);
-    // Allocate the molecule array. 
+    // Allocate the molecule array.
     float * molecule = (float *) malloc(sizeof(float) * 4 * numAtoms);
     float maxX = 0;
     float maxY = 0;
@@ -45,9 +48,9 @@ int main(int argc, char * argv[])
     float minZ = 0;
 
     for (int i = 0; i < numAtoms; i++){
-        printf("%s, %f, %f, %f, %f\n", atoms[i].name, 
-                                    atoms[i].x, 
-                                    atoms[i].y, 
+        printf("%s, %f, %f, %f, %f\n", atoms[i].name,
+                                    atoms[i].x,
+                                    atoms[i].y,
                                     atoms[i].z,
                                     atoms[i].charge);
         molecule[i * 4] = atoms[i].x;
@@ -56,13 +59,13 @@ int main(int argc, char * argv[])
         else if (atoms[i].x > maxX)
             minX = atoms[i].x;
 
-        molecule[i * 3 + 1] = atoms[i].y;
+        molecule[i * 4 + 1] = atoms[i].y;
         if (atoms[i].y > maxY)
             maxY = atoms[i].y;
         else if (atoms[i].y > maxY)
             minY = atoms[i].y;
 
-        molecule[i * 3 + 2] = atoms[i].z;
+        molecule[i * 4 + 2] = atoms[i].z;
         if (atoms[i].z > maxZ)
             maxZ = atoms[i].z;
         else if (atoms[i].z > maxZ)
@@ -74,35 +77,46 @@ int main(int argc, char * argv[])
             molecule[i * 4 + 3] = -2.0;
     }
 
-    int dimX  = (int) (abs(maxX) + PADDING) + (int) (abs(minX) + PADDING) * (1/GRIDSPACING);
-    int dimY  = (int) (abs(maxY) + PADDING) + (int) (abs(minY) + PADDING) * (1/GRIDSPACING);
-    int dimZ = (int) (abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING) * (1/GRIDSPACING);
+    int dimX  = (int) ((abs(maxX) + PADDING) + (int) (abs(minX) + PADDING)) * (1/gridSpacing);
+    int dimY  = (int) ((abs(maxY) + PADDING) + (int) (abs(minY) + PADDING)) * (1/gridSpacing);
+    int dimZ = (int) ((abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING))* (1/gridSpacing);
 
-    float * energyGrid = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
-    // printf("%d\n", dimX * dimY * dimZ);
+    float * energyGrid_cpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    assert(energyGrid_cpu);
+    printf("%d\n", dimX * dimY * dimZ);
 
-    discombob_on_cpu(energyGrid, dimX, dimY, dimZ, GRIDSPACING, molecule, numAtoms);
+    discombob_on_cpu(energyGrid_cpu, dimX, dimY, dimZ, gridSpacing, molecule, numAtoms);
+
+    float * energyGrid_gpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    assert(energyGrid_gpu);
+
+
+    d_discombobulate(energyGrid_gpu, dimX, dimY, dimZ, gridSpacing, molecule, numAtoms);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
 
     free(atoms);
     free(molecule);
-    free(energyGrid);
+    free(energyGrid_cpu);
+    free(energyGrid_gpu);
+
 }
 
-/* 
+/*
     getMoleculeLength
     Assigns the number of atoms in the molecule to atomCount
 
     csvParser: A CsvParser that is parsing the file  that describes the molecule.
-    atomCount: The number of atoms in the molecule. 
+    atomCount: The number of atoms in the molecule.
 */
 void getMoleculeLength(CsvParser * csvParser, int * atomCount) {
-    // Make a copy of the csv parser. 
+    // Make a copy of the csv parser.
     int count = 0;
     char delim = csvParser->delimiter_;
     char * file = csvParser->filePath_;
     CsvParser * countParser = CsvParser_new(file, &delim, 0);
-    
-    CsvRow * row = CsvParser_getRow(countParser); 
+
+    CsvRow * row = CsvParser_getRow(countParser);
     while (strcmp(row->fields_[0], "END") != 0) {
         if (strcmp(row->fields_[0], "ATOM") == 0) {
             count++;
@@ -112,34 +126,34 @@ void getMoleculeLength(CsvParser * csvParser, int * atomCount) {
     *atomCount = count;
 }
 
-/* 
+/*
     readMolecule
     Reads the molecule file in the parser, parses it and makes an array of atoms.
-    
+
     csvParser: A parser to parse the CSV file that contains data about the molecule.
-    atomCnt: A variable to return the number of atoms in the molecule. 
+    atomCnt: A variable to return the number of atoms in the molecule.
 */
 atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
-    // Get the number of atoms in the molecule. 
+    // Get the number of atoms in the molecule.
     getMoleculeLength(csvParser, atomCnt);
     // Allocate an array of atoms.
     atom * atoms = (atom *) calloc(*atomCnt, sizeof(atom));
-    // Get the first row of the file. 
-    CsvRow * csvRow = CsvParser_getRow(csvParser); 
+    // Get the first row of the file.
+    CsvRow * csvRow = CsvParser_getRow(csvParser);
     // printf("Number of atoms: %d", *atomCnt);
-    // Loop through all lines in the file until the END record. 
+    // Loop through all lines in the file until the END record.
 
     for (int i = 0; i < *atomCnt; i++){
         // Skip any record that is not an atom.
         csvRow = CsvParser_getRow(csvParser);
         // printf("Name CSV: %s\nx-coord: %f\ny-coord: %f\nz-coord: %f\ncharge: %f\n", csvRow->fields_[2],
-        //                                                                             strtof(csvRow->fields_[5], NULL),  
-        //                                                                             strtof(csvRow->fields_[6], NULL), 
-        //                                                                             strtof(csvRow->fields_[7], NULL),  
+        //                                                                             strtof(csvRow->fields_[5], NULL),
+        //                                                                             strtof(csvRow->fields_[6], NULL),
+        //                                                                             strtof(csvRow->fields_[7], NULL),
         //                                                                              strtof(csvRow->fields_[8], NULL));
 
         if (strcmp(*CsvParser_getFields(csvRow), "ATOM") == 0) {
-            
+
             strcpy(atoms[i].name, csvRow->fields_[2]);
             atoms[i].x = strtof(csvRow->fields_[5], NULL);
             atoms[i].y = strtof(csvRow->fields_[6], NULL);
@@ -155,8 +169,8 @@ atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
 }
 
 
-/* 
-    Prints an atom. 
+/*
+    Prints an atom.
 */
 void printAtoms(atom * atoms, int numAtoms) {
     for ( int i = 0; i < numAtoms; i++) {
@@ -166,4 +180,22 @@ void printAtoms(atom * atoms, int numAtoms) {
         printf("Z: %f, \n", atoms[i].z);
         printf("Charge: %f, \n", atoms[i].charge);
     }
+}
+
+
+int checkGrid(float *ref, float *check, int gridLength) {
+    float*correct = (float *) ref;
+    float*output = (float *) check;
+    for (int i = 0; i < gridLength; i++) {
+        if (output[i] != correct[i]) {
+            printf("Incorrect value at [%d]\n", i);
+            printf("%f != %f\n", output[i], correct[i]);
+
+            //unixError(errorMsg);
+            return 1;
+        }
+    }
+
+    printf("image is correct\n");
+    return 0;
 }
