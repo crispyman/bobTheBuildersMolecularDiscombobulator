@@ -17,9 +17,16 @@ __global__ void d_discombulateKernel(float * energyGrid, const float *atoms, dim
     atoms: An array of all atoms of the molecule and their positions. 
     numAtoms: The number of atoms in the molecule.
 */
-void d_discombobulate(float * energyGrid, float *atoms, int dimX, int dimY, int dimZ, float gridSpacing,  int numAtoms){    /*
+int d_discombobulate(float * energyGrid, float *atoms, int dimX, int dimY, int dimZ, float gridSpacing,  int numAtoms, int which){    /*
         TODO: Write host code to set up the cuda kernel, and launch d_discombobulateKernel
     */
+    cudaEvent_t start_gpu, stop_gpu;
+    float gpuMsecTime = -1;
+
+    CHECK(cudaEventCreate(&start_gpu));
+    CHECK(cudaEventCreate(&stop_gpu));
+    CHECK(cudaEventRecord(start_gpu));
+
     int gridSize = sizeof(float) * dimX * dimY * dimZ;
     float * d_energyGrid;
     CHECK(cudaMalloc((void**)&d_energyGrid, gridSize));
@@ -27,17 +34,20 @@ void d_discombobulate(float * energyGrid, float *atoms, int dimX, int dimY, int 
     float * d_atoms;
     CHECK(cudaMalloc((void**)&d_atoms, numAtoms * 4 * sizeof(int)));
     CHECK(cudaMemcpy(d_atoms, atoms, numAtoms * 4 * sizeof(int), cudaMemcpyHostToDevice));
-
-    dim3 blockDim(THREADSPERBLOCK, 1, 1);
-    dim3 gridDim(ceil((1.0 * dimZ) / THREADSPERBLOCK), 1, 1);
-
     dim3 grid(dimX, dimY, dimZ);
 
-    d_discombulateKernel<<<gridDim, blockDim>>>(d_energyGrid, d_atoms, grid, gridSpacing, numAtoms);
+    if (which == 0) {
+        dim3 blockDim(THREADSPERBLOCK, 1, 1);
+        dim3 gridDim(ceil((1.0 * dimZ) / THREADSPERBLOCK), 1, 1);
+        d_discombulateKernel<<<gridDim, blockDim>>>(d_energyGrid, d_atoms, grid, gridSpacing, numAtoms);
+    }
 
     CHECK(cudaMemcpy(energyGrid, d_energyGrid, gridSize, cudaMemcpyDeviceToHost));
 
-
+    CHECK(cudaEventRecord(stop_gpu));
+    CHECK(cudaEventSynchronize(stop_gpu));
+    CHECK(cudaEventElapsedTime(&gpuMsecTime, start_gpu, stop_gpu));
+    return gpuMsecTime;
 
 }
 

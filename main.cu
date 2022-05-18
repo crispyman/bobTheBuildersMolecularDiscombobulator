@@ -85,15 +85,23 @@ int main(int argc, char * argv[])
     assert(energyGrid_cpu);
     printf("%d\n", dimX * dimY * dimZ);
 
-    discombob_on_cpu(energyGrid_cpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
+    float h_time = discombob_on_cpu(energyGrid_cpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
+
+    printf("\nTiming\n");
+    printf("------\n");
+    printf("CPU: \t\t\t\t%f msec\n", h_time);
 
     float * energyGrid_gpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_gpu);
 
 
-    d_discombobulate(energyGrid_gpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
+    float d_time = d_discombobulate(energyGrid_gpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
 
     checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
+    printf("GPU (0): \t\t%f msec\n", d_time);
+    float speedup = h_time/d_time;
+    printf("Speedup: \t\t\t%f\n", speedup);
+
 
     free(atoms);
     free(molecule);
