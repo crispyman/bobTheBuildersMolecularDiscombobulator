@@ -2,7 +2,7 @@
 // Created by andrewiii on 5/10/22.
 //
 
-void discombob_on_cpu(float * energyGrid, int dimX, int dimY, int dimZ, float gridSpacing, float *atoms, int numAtoms){
+void discombob_on_cpu(float * energyGrid, float *atoms, int dimX, int dimY, int dimZ, float gridSpacing, int numAtoms){
     int i,j,k,n;
     int atomArrDim = numAtoms * 4;
     for (k=0; k<dimZ; k++) {

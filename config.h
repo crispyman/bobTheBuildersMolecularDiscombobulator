@@ -1,8 +1,10 @@
 /* 
     A config file for bobTheBuildersDiscombobulator 
 */
-
-#define PADDING 1
-#define GRIDSPACING .1
 // The amount to pad the energy grid in each direction.
- 
+#define PADDING 1
+// Granularity of energy calculations
+#define GRIDSPACING .1
+#define THREADSPERBLOCK 512
+
+

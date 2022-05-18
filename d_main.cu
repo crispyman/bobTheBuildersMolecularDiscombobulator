@@ -6,8 +6,8 @@
 #include "molecule.h"
 #include "d_main.h"
 
-__global__ void d_discombulateKernel(float * energyGrid, dim3 grid, float gridspacing,
-                                     const float *atoms, int numatoms);
+__global__ void d_discombulateKernel(float * energyGrid, const float *atoms, dim3 grid, float gridspacing,
+                                      int numatoms);
 
 /* 
     d_main.cu 
@@ -17,8 +17,7 @@ __global__ void d_discombulateKernel(float * energyGrid, dim3 grid, float gridsp
     atoms: An array of all atoms of the molecule and their positions. 
     numAtoms: The number of atoms in the molecule.
 */
-void d_discombobulate(float * energyGrid, int dimX, int dimY, int dimZ, float gridSpacing, float *atoms, int numAtoms) {
-    /* 
+void d_discombobulate(float * energyGrid, float *atoms, int dimX, int dimY, int dimZ, float gridSpacing,  int numAtoms){    /*
         TODO: Write host code to set up the cuda kernel, and launch d_discombobulateKernel
     */
     int gridSize = sizeof(float) * dimX * dimY * dimZ;
@@ -29,12 +28,12 @@ void d_discombobulate(float * energyGrid, int dimX, int dimY, int dimZ, float gr
     CHECK(cudaMalloc((void**)&d_atoms, numAtoms * 4 * sizeof(int)));
     CHECK(cudaMemcpy(d_atoms, atoms, numAtoms * 4 * sizeof(int), cudaMemcpyHostToDevice));
 
-    dim3 blockDim(1024, 1, 1);
-    dim3 gridDim(ceil((1.0 * dimZ) / 1024), 1, 1);
+    dim3 blockDim(THREADSPERBLOCK, 1, 1);
+    dim3 gridDim(ceil((1.0 * dimZ) / THREADSPERBLOCK), 1, 1);
 
     dim3 grid(dimX, dimY, dimZ);
 
-    d_discombulateKernel<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, d_atoms, numAtoms);
+    d_discombulateKernel<<<gridDim, blockDim>>>(d_energyGrid, d_atoms, grid, gridSpacing, numAtoms);
 
     CHECK(cudaMemcpy(energyGrid, d_energyGrid, gridSize, cudaMemcpyDeviceToHost));
 
@@ -49,8 +48,8 @@ void d_discombobulate(float * energyGrid, int dimX, int dimY, int dimZ, float gr
 
     energyGrid: The float array associated with the molecule 
 */
-__global__ void d_discombulateKernel(float * energyGrid, dim3 grid, float gridSpacing,
-                                     const float *atoms, int numAtoms) {
+__global__ void d_discombulateKernel(float * energyGrid, const float *atoms, dim3 grid, float gridSpacing,
+                                     int numAtoms) {
     /* 
         TODO: Write code to calculate the energy grid and store it in the 
         float array energyGrid. 

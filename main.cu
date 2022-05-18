@@ -85,13 +85,13 @@ int main(int argc, char * argv[])
     assert(energyGrid_cpu);
     printf("%d\n", dimX * dimY * dimZ);
 
-    discombob_on_cpu(energyGrid_cpu, dimX, dimY, dimZ, GRIDSPACING, molecule, numAtoms);
+    discombob_on_cpu(energyGrid_cpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
 
     float * energyGrid_gpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_gpu);
 
 
-    d_discombobulate(energyGrid_gpu, dimX, dimY, dimZ, GRIDSPACING, molecule, numAtoms);
+    d_discombobulate(energyGrid_gpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
 
     checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
 
@@ -140,6 +140,9 @@ atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
     atom * atoms = (atom *) calloc(*atomCnt, sizeof(atom));
     // Get the first row of the file.
     CsvRow * csvRow = CsvParser_getRow(csvParser);
+    // delete the row because we don't need it
+    CsvParser_destroy_row(csvRow);
+
     // printf("Number of atoms: %d", *atomCnt);
     // Loop through all lines in the file until the END record.
 
