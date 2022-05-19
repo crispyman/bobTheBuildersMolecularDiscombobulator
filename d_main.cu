@@ -56,7 +56,7 @@ int d_discombobulate(float * energyGrid, float *atoms, int dimX, int dimY, int d
     if (which == 1) {
         dim3 blockDim(THREADSPERBLOCK, 1, 1);
         dim3 gridDim(ceil((1.0 * dimZ) / THREADSPERBLOCK), 1, 1);
-        d_discombulateKernel<<<gridDim, blockDim>>>(d_energyGrid, d_atoms, grid, gridSpacing, numAtoms);
+        d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtoms);
     }
 
     CHECK(cudaMemcpy(energyGrid, d_energyGrid, gridSize, cudaMemcpyDeviceToHost));
@@ -105,8 +105,6 @@ __global__ void d_discombulateKernelConst(float * energyGrid, dim3 grid, float g
 
 
     int i, j, n;
-    printf("%f %f %f %f\n", constAtoms[0], constAtoms[1], constAtoms[2], constAtoms[3]);
-
     if (blockDim.x * blockIdx.x + threadIdx.x < grid.z) {
         float z = gridSpacing * (threadIdx.x + blockIdx.x * blockDim.x);
         int atomArrDim = numAtoms * 4;

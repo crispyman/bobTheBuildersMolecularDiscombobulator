@@ -105,7 +105,7 @@ int main(int argc, char * argv[])
     float * energyGrid_gpu_const = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_gpu);
 
-    float d_time_const = d_discombobulate(energyGrid_gpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
+    float d_time_const = d_discombobulate(energyGrid_gpu_const, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
 
     checkGrid(energyGrid_cpu, energyGrid_gpu_const, dimX * dimY * dimZ);
     printf("GPU (1): \t\t%f msec\n", d_time_const);
