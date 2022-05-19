@@ -34,9 +34,8 @@ int d_discombobulate(float * energyGrid, float *atoms, int dimX, int dimY, int d
      * TODO: Find out why cudaMemcpyToSymbol is silently failing
      */
 
-    CHECK(cudaMemcpyToSymbol(constAtoms, atoms, sizeof(float) * 4));
+    CHECK(cudaMemcpyToSymbol(constAtoms, atoms, sizeof(float) * numAtoms * 4));
 
-    printf("%f %f %f %f\n", constAtoms[0], constAtoms[1], constAtoms[2], constAtoms[3]);
 
 
     int gridSize = sizeof(float) * dimX * dimY * dimZ;
@@ -106,6 +105,8 @@ __global__ void d_discombulateKernelConst(float * energyGrid, dim3 grid, float g
 
 
     int i, j, n;
+    printf("%f %f %f %f\n", constAtoms[0], constAtoms[1], constAtoms[2], constAtoms[3]);
+
     if (blockDim.x * blockIdx.x + threadIdx.x < grid.z) {
         float z = gridSpacing * (threadIdx.x + blockIdx.x * blockDim.x);
         int atomArrDim = numAtoms * 4;
