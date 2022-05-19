@@ -34,7 +34,7 @@ int d_discombobulate(float * energyGrid, float *atoms, int dimX, int dimY, int d
      * TODO: Find out why cudaMemcpyToSymbol is silently failing
      */
 
-    CHECK(cudaMemcpyToSymbol(constAtoms, &atoms, sizeof(float) * 4));
+    CHECK(cudaMemcpyToSymbol(constAtoms, atoms, sizeof(float) * 4));
 
     printf("%f %f %f %f\n", constAtoms[0], constAtoms[1], constAtoms[2], constAtoms[3]);
 
