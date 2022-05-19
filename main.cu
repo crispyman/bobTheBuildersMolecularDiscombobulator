@@ -71,10 +71,10 @@ int main(int argc, char * argv[])
         else if (atoms[i].z > maxZ)
             minZ = atoms[i].z;
 
-        if (atoms[i].name[0] == 'H')
-            molecule[i * 4 + 3] = 1.0;
-        else if (atoms[i].name[0] == 'O')
-            molecule[i * 4 + 3] = -2.0;
+//        if (atoms[i].name[0] == 'H')
+//            molecule[i * 4 + 3] = 1.0;
+//        else if (atoms[i].name[0] == 'O')
+//            molecule[i * 4 + 3] = -2.0;
     }
 
     int dimX  = (int) ((abs(maxX) + PADDING) + (int) (abs(minX) + PADDING)) * (1/GRIDSPACING);
@@ -83,7 +83,7 @@ int main(int argc, char * argv[])
 
     float * energyGrid_cpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_cpu);
-    printf("%d\n", dimX * dimY * dimZ);
+    printf("%d * %d * %d = %d\n",dimX, dimY, dimZ, dimX * dimY * dimZ);
 
     float h_time = discombob_on_cpu(energyGrid_cpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
 
@@ -100,6 +100,16 @@ int main(int argc, char * argv[])
     checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
     printf("GPU (0): \t\t%f msec\n", d_time);
     float speedup = h_time/d_time;
+    printf("Speedup: \t\t\t%f\n", speedup);
+
+    float * energyGrid_gpu_const = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    assert(energyGrid_gpu);
+
+    float d_time_const = d_discombobulate(energyGrid_gpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu_const, dimX * dimY * dimZ);
+    printf("GPU (1): \t\t%f msec\n", d_time_const);
+    speedup = h_time/d_time_const;
     printf("Speedup: \t\t\t%f\n", speedup);
 
 

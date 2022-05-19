@@ -5,6 +5,6 @@
 #define PADDING 1
 // Granularity of energy calculations
 #define GRIDSPACING .1
-#define THREADSPERBLOCK 512
+#define THREADSPERBLOCK 128
 
 
