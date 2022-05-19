@@ -217,6 +217,6 @@ int checkGrid(float *ref, float *check, int gridLength) {
         }
     }
 
-    printf("image is correct\n");
+    printf("Grid is correct\n");
     return 0;
 }
