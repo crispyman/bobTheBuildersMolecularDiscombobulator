@@ -7,10 +7,12 @@ CC = g++
 
 #Optimization flags: -O2 gets sent to host compiler; -Xptxas -O2 is for
 #optimizing PTX
-#NVCCFLAGS = -c -O2  -Xptxas -O2 -lineinfo --compiler-options  -Wall# -mfpmath=sse -msse2"
+# -fmad=false is reqired to get results to match between cpu and gpu with optimzation
+# TODO: Figure out how to get rid of fmad=false to improve performance
+NVCCFLAGS = -c -O2  -Xptxas -O2 -lineinfo -fmad=false --compiler-options  -Wall# -mfpmath=sse -msse2"
 
 #Flags for debugging
-NVCCFLAGS = -c -G --compiler-options -Wall --compiler-options -g
+#NVCCFLAGS = -c -G --compiler-options -Wall --compiler-options -g
 
 OBJS = wrappers.o main.o csvparser.o csvwriter.o h_main.o d_main.o
 .SUFFIXES: .cu .o .h
