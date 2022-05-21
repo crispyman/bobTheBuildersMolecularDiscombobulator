@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include "molecule.h"
 #include "csvparser.h"
+#include "csvwriter.h"
 #include "main.h"
 #include "d_main.h"
 #include "h_main.h"
@@ -19,16 +20,17 @@
 int getMoleculeLength(CsvRow * csvRow);
 atom * readMolecule(CsvParser * csvParser, int* atomCnt);
 int checkGrid(float *ref, float *check, int gridLength);
-
 void printAtoms(atom * atoms, int numAtoms);
+void writeGrid(float * data, int gridLength);
+
+
 
 int main(int argc, char * argv[])
 {
     // Get the file name and parse it.
     char delim = ' ';
     int numAtoms = 0;
-
-    char* file = "stripped_alinin.pqr";
+    char* file = "h2o.pqr";
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
     // Read the molecule file and write the atoms to an array of atoms.
     atom * atoms = readMolecule(csvParser, &numAtoms);
@@ -71,6 +73,8 @@ int main(int argc, char * argv[])
         else if (atoms[i].z > maxZ)
             minZ = atoms[i].z;
 
+        molecule[i * 4 + 3] = atoms[i].charge;
+
 //        if (atoms[i].name[0] == 'H')
 //            molecule[i * 4 + 3] = 1.0;
 //        else if (atoms[i].name[0] == 'O')
@@ -81,11 +85,22 @@ int main(int argc, char * argv[])
     int dimY  = (int) ((abs(maxY) + PADDING) + (int) (abs(minY) + PADDING)) * (1/GRIDSPACING);
     int dimZ = (int) ((abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING))* (1/GRIDSPACING);
 
+    for (int i = 0; i < numAtoms; i++) {
+        molecule[i * 4] = molecule[i * 4] + (abs(minX) + PADDING);
+        molecule[i * 4 + 1] = molecule[i * 4 + 1] + (abs(minY) + PADDING);
+        molecule[i * 4 + 2] = molecule[i * 4 + 2] + (abs(minZ) + PADDING);
+
+
+    }
+
     float * energyGrid_cpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_cpu);
     printf("%d * %d * %d = %d\n",dimX, dimY, dimZ, dimX * dimY * dimZ);
 
     float h_time = discombob_on_cpu(energyGrid_cpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
+
+    writeGrid(energyGrid_cpu, dimX * dimY * dimZ);
+
 
     printf("\nTiming\n");
     printf("------\n");
@@ -96,6 +111,8 @@ int main(int argc, char * argv[])
 
 
     float d_time = d_discombobulate(energyGrid_gpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
+
+
 
     checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
     printf("GPU (0): \t\t%f msec\n", d_time);
@@ -219,4 +236,22 @@ int checkGrid(float *ref, float *check, int gridLength) {
 
     printf("image is correct\n");
     return 0;
+}
+
+
+void writeGrid(float * data, int gridLength){
+    char buf[1024];
+    float max = 1;
+    CsvWriter *csvWriter = CsvWriter_new("cpuopt.csv", ",", 0);
+    for (int i = 0; i < gridLength; i++){
+        if (data[i] < max)
+            max = data[i];
+        gcvt(data[i], 25, buf);
+        if (CsvWriter_writeField(csvWriter, buf)) {
+            printf("Error: %s\n", CsvWriter_getErrorMessage(csvWriter));
+            break;
+        }
+    }
+    CsvWriter_destroy(csvWriter);
+    printf("\n%f\n", max);
 }
