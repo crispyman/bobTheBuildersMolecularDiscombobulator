@@ -12,6 +12,8 @@ __global__ void d_discombulateKernel(float * energyGrid, const float *atoms, dim
 __global__ void d_discombulateKernelConst(float * energyGrid, dim3 grid, float gridSpacing,
                                           int numAtoms);
 
+static __global__ void emptyKernel();
+
 /* 
     d_main.cu 
     Calculates an electrostatic potential grid for the molecule passed. 
@@ -22,19 +24,18 @@ __global__ void d_discombulateKernelConst(float * energyGrid, dim3 grid, float g
 */
 __constant__ float constAtoms[1024];
 
-int d_discombobulate(float * energyGrid, float *atoms, int dimX, int dimY, int dimZ, float gridSpacing,  int numAtoms, int which){
+int d_discombobulate(float * energyGrid, float * atoms, int dimX, int dimY, int dimZ, float gridSpacing,  int numAtoms, int which){
     cudaEvent_t start_gpu, stop_gpu;
     float gpuMsecTime = -1;
 
     CHECK(cudaEventCreate(&start_gpu));
     CHECK(cudaEventCreate(&stop_gpu));
+
+    emptyKernel<<<1024, 1024>>>();
+
+
     CHECK(cudaEventRecord(start_gpu));
 
-    /*
-     * TODO: Find out why cudaMemcpyToSymbol is silently failing
-     */
-
-    CHECK(cudaMemcpyToSymbol(constAtoms, atoms, sizeof(float) * numAtoms * 4));
 
 
 
@@ -54,12 +55,17 @@ int d_discombobulate(float * energyGrid, float *atoms, int dimX, int dimY, int d
         d_discombulateKernel<<<gridDim, blockDim>>>(d_energyGrid, d_atoms, grid, gridSpacing, numAtoms);
     }
     if (which == 1) {
+        CHECK(cudaMemcpyToSymbol(constAtoms, atoms, sizeof(float) * numAtoms * 4));
+
         dim3 blockDim(THREADSPERBLOCK, 1, 1);
         dim3 gridDim(ceil((1.0 * dimZ) / THREADSPERBLOCK), 1, 1);
         d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtoms);
     }
 
     CHECK(cudaMemcpy(energyGrid, d_energyGrid, gridSize, cudaMemcpyDeviceToHost));
+
+    CHECK(cudaFree(d_atoms));
+    CHECK(cudaFree(d_energyGrid));
 
     CHECK(cudaEventRecord(stop_gpu));
     CHECK(cudaEventSynchronize(stop_gpu));
@@ -123,4 +129,8 @@ __global__ void d_discombulateKernelConst(float * energyGrid, dim3 grid, float g
             }
         }
     }
+}
+
+__global__ void emptyKernel()
+{
 }

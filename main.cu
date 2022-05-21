@@ -244,7 +244,7 @@ void writeGrid(float * data, int gridLength){
     float max = 1;
     CsvWriter *csvWriter = CsvWriter_new("cpuopt.csv", ",", 0);
     for (int i = 0; i < gridLength; i++){
-        if (data[i] < max)
+        if (data[i] > max)
             max = data[i];
         gcvt(data[i], 25, buf);
         if (CsvWriter_writeField(csvWriter, buf)) {
