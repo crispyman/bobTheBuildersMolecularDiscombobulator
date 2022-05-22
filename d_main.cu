@@ -131,8 +131,8 @@ __global__ void d_discombulateKernel(float * energyGrid, const atom *atoms, dim3
                     float dz = z - atoms[n].z;
                     energy += atoms[n].charge / sqrtf(dx * dx + dy * dy + dz * dz);
                 }
-                    __syncthreads();
                     energyGrid[grid.x * grid.y * i + grid.x * j + (blockIdx.x * blockDim.x + threadIdx.x)] = energy;
+                    __syncthreads();
 
             }
         }
@@ -170,8 +170,8 @@ __global__ void d_discombulateKernelConst(float * energyGrid, dim3 grid, float g
                     float charge = constAtoms[n].charge;
                     energy += charge / sqrtf(dx * dx + dy * dy + dz * dz);
                 }
-                    __syncthreads();
                     energyGrid[grid.x * grid.y * i + grid.x * j + (blockIdx.x * blockDim.x + threadIdx.x)] = energy;
+                    __syncthreads();
 
             }
         }
@@ -210,8 +210,8 @@ __global__ void d_discombulateKernelConst2D(float * energyGrid, dim3 grid, float
                 float charge = constAtoms[n].charge;
                 energy += charge / sqrtf(dx * dx + dy * dy + dz * dz);
             }
-            __syncthreads();
             energyGrid[grid.x * grid.y * i + grid.x * idY + idX] = energy;
+            __syncthreads();
 
         }
     }
@@ -239,8 +239,9 @@ __global__ void d_discombulateKernelConst3D(float * energyGrid, dim3 grid, float
             float charge = constAtoms[n].charge;
             energy += charge / sqrtf(dx * dx + dy * dy + dz * dz);
         }
-        __syncthreads();
         energyGrid[grid.x * grid.y * idZ + grid.x * idY + idX] = energy;
+        __syncthreads();
+
 
     }
 }
