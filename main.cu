@@ -30,7 +30,7 @@ int main(int argc, char * argv[])
     // Get the file name and parse it.
     char delim = ' ';
     int numAtoms = 0;
-    char* file = "h2o.pqr";
+    char* file = "stripped_alinin.pqr";
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
     // Read the molecule file and write the atoms to an array of atoms.
     atom * atoms = readMolecule(csvParser, &numAtoms);
@@ -40,7 +40,7 @@ int main(int argc, char * argv[])
 
     CsvParser_destroy(csvParser);
     // Allocate the molecule array.
-    float * molecule = (float *) malloc(sizeof(float) * 4 * numAtoms);
+    //float * molecule = (float *) malloc(sizeof(float) * 4 * numAtoms);
     float maxX = 0;
     float maxY = 0;
     float maxZ = 0;
@@ -50,30 +50,30 @@ int main(int argc, char * argv[])
     float minZ = 0;
 
     for (int i = 0; i < numAtoms; i++){
-        printf("%s, %f, %f, %f, %f\n", atoms[i].name,
+        printf("%f, %f, %f, %f\n",// atoms[i].name,
                                     atoms[i].x,
                                     atoms[i].y,
                                     atoms[i].z,
                                     atoms[i].charge);
-        molecule[i * 4] = atoms[i].x;
+        //molecule[i * 4] = atoms[i].x;
         if (atoms[i].x > maxX)
             maxX = atoms[i].x;
         else if (atoms[i].x > maxX)
             minX = atoms[i].x;
 
-        molecule[i * 4 + 1] = atoms[i].y;
+        //molecule[i * 4 + 1] = atoms[i].y;
         if (atoms[i].y > maxY)
             maxY = atoms[i].y;
         else if (atoms[i].y > maxY)
             minY = atoms[i].y;
 
-        molecule[i * 4 + 2] = atoms[i].z;
+        //molecule[i * 4 + 2] = atoms[i].z;
         if (atoms[i].z > maxZ)
             maxZ = atoms[i].z;
         else if (atoms[i].z > maxZ)
             minZ = atoms[i].z;
 
-        molecule[i * 4 + 3] = atoms[i].charge;
+        //molecule[i * 4 + 3] = atoms[i].charge;
 
 //        if (atoms[i].name[0] == 'H')
 //            molecule[i * 4 + 3] = 1.0;
@@ -86,19 +86,18 @@ int main(int argc, char * argv[])
     int dimZ = (int) ((abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING))* (1/GRIDSPACING);
 
     for (int i = 0; i < numAtoms; i++) {
-        molecule[i * 4] = molecule[i * 4] + (abs(minX) + PADDING);
-        molecule[i * 4 + 1] = molecule[i * 4 + 1] + (abs(minY) + PADDING);
-        molecule[i * 4 + 2] = molecule[i * 4 + 2] + (abs(minZ) + PADDING);
+        atoms[i].x  += (abs(minX) + PADDING);
+        atoms[i].y += (abs(minY) + PADDING);
+        atoms[i].z += (abs(minZ) + PADDING);
 
 
     }
+    printf("%d * %d * %d * %lu = %lu\n",dimX, dimY, dimZ, sizeof(float), dimX * dimY * dimZ * sizeof(float));
 
+    // CPU
     float * energyGrid_cpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_cpu);
-    printf("%d * %d * %d = %d\n",dimX, dimY, dimZ, dimX * dimY * dimZ);
-
-    float h_time = discombob_on_cpu(energyGrid_cpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
-
+    float h_time = discombob_on_cpu(energyGrid_cpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
     writeGrid(energyGrid_cpu, dimX * dimY * dimZ);
 
 
@@ -106,34 +105,62 @@ int main(int argc, char * argv[])
     printf("------\n");
     printf("CPU: \t\t\t\t%f msec\n", h_time);
 
+
+    // GPU
     float * energyGrid_gpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_gpu);
 
-
-    float d_time = d_discombobulate(energyGrid_gpu, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
-
-
+    float d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
 
     checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
     printf("GPU (0): \t\t%f msec\n", d_time);
     float speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
 
-    float * energyGrid_gpu_const = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
-    assert(energyGrid_gpu);
 
-    float d_time_const = d_discombobulate(energyGrid_gpu_const, molecule, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
+    // GPU Const
+    d_time = 0;
+    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
 
-    checkGrid(energyGrid_cpu, energyGrid_gpu_const, dimX * dimY * dimZ);
-    printf("GPU (1): \t\t%f msec\n", d_time_const);
-    speedup = h_time/d_time_const;
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
+    printf("GPU (1): \t\t%f msec\n", d_time);
+    speedup = h_time/d_time;
+    printf("Speedup: \t\t\t%f\n", speedup);
+
+
+
+    // GPU Const 2D
+    d_time = 0;
+    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 2);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
+    printf("GPU (2): \t\t%f msec\n", d_time);
+    speedup = h_time/d_time;
+    printf("Speedup: \t\t\t%f\n", speedup);
+
+
+    // GPU Const 3D
+    d_time = 0;
+    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 3);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
+    printf("GPU (3): \t\t%f msec\n", d_time);
+    speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
 
 
     free(atoms);
-    free(molecule);
+    //free(molecule);
+
     free(energyGrid_cpu);
     free(energyGrid_gpu);
+
 
 }
 
@@ -192,7 +219,7 @@ atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
 
         if (strcmp(*CsvParser_getFields(csvRow), "ATOM") == 0) {
 
-            strcpy(atoms[i].name, csvRow->fields_[2]);
+            //strcpy(atoms[i].name, csvRow->fields_[2]);
             atoms[i].x = strtof(csvRow->fields_[5], NULL);
             atoms[i].y = strtof(csvRow->fields_[6], NULL);
             atoms[i].z = strtof(csvRow->fields_[7], NULL);
@@ -212,7 +239,7 @@ atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
 */
 void printAtoms(atom * atoms, int numAtoms) {
     for ( int i = 0; i < numAtoms; i++) {
-        printf("Name: %s, \n", atoms[i].name);
+        //printf("Name: %s, \n", atoms[i].name);
         printf("X: %f, \n", atoms[i].x);
         printf("Y: %f, \n", atoms[i].y);
         printf("Z: %f, \n", atoms[i].z);
