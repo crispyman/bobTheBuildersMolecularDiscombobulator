@@ -1,0 +1,34 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: cuda-toolkit
+    # You may pin to the exact commit or the version.
+    # uses: Jimver/cuda-toolkit@290bacef8a00668d064071ae181ab55396572c6b
+      uses: Jimver/cuda-toolkit@v0.2.7
+      with:
+      # Cuda version
+        cuda: # optional, default is 11.7.0
+          '11.7.0'
+        # Only installs specified subpackages, must be in the form of a JSON array. For example, if you only want to install nvcc and visual studio integration: ["nvcc", "visual_studio_integration"] double quotes required! Note that if you want to use this on Linux, 'network' method MUST be used.
+        sub-packages: # optional, default is []
+          '["nvcc"]'
+        # Installation method, can be either 'local' or 'network'. 'local' downloads the entire installer with all packages and runs that (you can still only install certain packages with sub-packages on Windows). 'network' downloads a smaller executable which only downloads necessary packages which you can define in subPackages
+        method: # optional, default is local
+          '["local"]'
+        # (Linux and 'local' method only) override arguments for the linux .run installer. For example if you don't want samples use ["--toolkit"] double quotes required!
+        linux-local-args: # optional, default is ["--toolkit", "--samples"]
+          '["--toolkit", "--samples"]'
+    - name: make
+      run: make'["nvcc"
