@@ -94,11 +94,10 @@ int main(int argc, char * argv[])
     }
     printf("%d * %d * %d * %lu = %lu\n",dimX, dimY, dimZ, sizeof(float), dimX * dimY * dimZ * sizeof(float));
 
+    // CPU
     float * energyGrid_cpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_cpu);
-
     float h_time = discombob_on_cpu(energyGrid_cpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
-
     writeGrid(energyGrid_cpu, dimX * dimY * dimZ);
 
 
@@ -106,34 +105,62 @@ int main(int argc, char * argv[])
     printf("------\n");
     printf("CPU: \t\t\t\t%f msec\n", h_time);
 
+
+    // GPU
     float * energyGrid_gpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_gpu);
 
-
     float d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
-
-
 
     checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
     printf("GPU (0): \t\t%f msec\n", d_time);
     float speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
 
-    float * energyGrid_gpu_const = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
-    assert(energyGrid_gpu);
 
-    float d_time_const = d_discombobulate(energyGrid_gpu_const, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
+    // GPU Const
+    d_time = 0;
+    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
 
-    checkGrid(energyGrid_cpu, energyGrid_gpu_const, dimX * dimY * dimZ);
-    printf("GPU (1): \t\t%f msec\n", d_time_const);
-    speedup = h_time/d_time_const;
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
+    printf("GPU (1): \t\t%f msec\n", d_time);
+    speedup = h_time/d_time;
+    printf("Speedup: \t\t\t%f\n", speedup);
+
+
+
+    // GPU Const 2D
+    d_time = 0;
+    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 2);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
+    printf("GPU (2): \t\t%f msec\n", d_time);
+    speedup = h_time/d_time;
+    printf("Speedup: \t\t\t%f\n", speedup);
+
+
+    // GPU Const 3D
+    d_time = 0;
+    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 3);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ);
+    printf("GPU (3): \t\t%f msec\n", d_time);
+    speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
 
 
     free(atoms);
     //free(molecule);
+
     free(energyGrid_cpu);
     free(energyGrid_gpu);
+
 
 }
 
