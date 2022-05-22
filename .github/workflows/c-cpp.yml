@@ -30,5 +30,8 @@ jobs:
         # (Linux and 'local' method only) override arguments for the linux .run installer. For example if you don't want samples use ["--toolkit"] double quotes required!
         linux-local-args: # optional, default is ["--toolkit", "--samples"]
           '["--toolkit", "--samples"]'
+    - name: pathUpdate
+      run: export LD_LIBRARY_PATH=/usr/local/cuda-11.7/lib64\
+                         {LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
     - name: make
       run: make
