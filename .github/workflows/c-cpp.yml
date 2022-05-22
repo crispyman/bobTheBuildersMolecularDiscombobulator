@@ -31,4 +31,4 @@ jobs:
         linux-local-args: # optional, default is ["--toolkit", "--samples"]
           '["--toolkit", "--samples"]'
     - name: make
-      run: make'["nvcc"
+      run: make
