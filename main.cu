@@ -30,7 +30,7 @@ int main(int argc, char * argv[])
     // Get the file name and parse it.
     char delim = ' ';
     int numAtoms = 0;
-    char* file = "stripped_alinin.pqr";
+    char* file = "short_stripped_alinin.pqr";
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
     // Read the molecule file and write the atoms to an array of atoms.
     atom * atoms = readMolecule(csvParser, &numAtoms);
@@ -50,11 +50,11 @@ int main(int argc, char * argv[])
     float minZ = 0;
 
     for (int i = 0; i < numAtoms; i++){
-        printf("%f, %f, %f, %f\n",// atoms[i].name,
-                                    atoms[i].x,
-                                    atoms[i].y,
-                                    atoms[i].z,
-                                    atoms[i].charge);
+        // printf("%f, %f, %f, %f\n",// atoms[i].name,
+        //                             atoms[i].x,
+        //                             atoms[i].y,
+        //                             atoms[i].z,
+        //                             atoms[i].charge);
         //molecule[i * 4] = atoms[i].x;
         if (atoms[i].x > maxX)
             maxX = atoms[i].x;
@@ -74,11 +74,6 @@ int main(int argc, char * argv[])
             minZ = atoms[i].z;
 
         //molecule[i * 4 + 3] = atoms[i].charge;
-
-//        if (atoms[i].name[0] == 'H')
-//            molecule[i * 4 + 3] = 1.0;
-//        else if (atoms[i].name[0] == 'O')
-//            molecule[i * 4 + 3] = -2.0;
     }
 
     int dimX  = (int) ((abs(maxX) + PADDING) + (int) (abs(minX) + PADDING)) * (1/GRIDSPACING);
@@ -92,7 +87,7 @@ int main(int argc, char * argv[])
 
 
     }
-    printf("%d * %d * %d * %lu = %lu\n",dimX, dimY, dimZ, sizeof(float), dimX * dimY * dimZ * sizeof(float));
+    // printf("%d * %d * %d * %lu = %lu\n",dimX, dimY, dimZ, sizeof(float), dimX * dimY * dimZ * sizeof(float));
 
     // CPU
     float * energyGrid_cpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
@@ -131,7 +126,7 @@ int main(int argc, char * argv[])
 
 
 
-    // GPU Const 2D
+/*     // GPU Const 2D
     d_time = 0;
     memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
 
@@ -155,7 +150,7 @@ int main(int argc, char * argv[])
     printf("Speedup: \t\t\t%f\n", speedup);
 
 
-    free(atoms);
+    free(atoms); */
     //free(molecule);
 
     free(energyGrid_cpu);

@@ -9,10 +9,10 @@ CC = g++
 #optimizing PTX
 # -fmad=false is reqired to get results to match between cpu and gpu with optimzation
 # TODO: Figure out how to get rid of fmad=false to improve performance
-NVCCFLAGS = -c -O2  -Xptxas -O2 -lineinfo -fmad=false --compiler-options  -Wall
+# NVCCFLAGS = -c -O2  -Xptxas -O2 -lineinfo -fmad=false --compiler-options  -Wall
 
 #Flags for debugging
-#NVCCFLAGS = -c -G --compiler-options -Wall --compiler-options -g
+NVCCFLAGS = -c -G --compiler-options -Wall -fmad=false --compiler-options -g
 
 OBJS = wrappers.o main.o csvparser.o csvwriter.o h_main.o d_main.o
 .SUFFIXES: .cu .o .h

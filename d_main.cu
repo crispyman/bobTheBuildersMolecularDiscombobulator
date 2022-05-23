@@ -28,7 +28,8 @@ static __global__ void emptyKernel();
     atoms: An array of all atoms of the molecule and their positions. 
     numAtoms: The number of atoms in the molecule.
 */
-__constant__ atom constAtoms[256];
+__constant__ atom constAtoms[MAXCONSTANTATOMS];
+
 int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int dimZ, float gridSpacing,  int numAtoms, int which){
     cudaEvent_t start_gpu, stop_gpu;
     float gpuMsecTime = -1;;
@@ -72,12 +73,21 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
     }
     // Same kernel as previous, but this time using constant memory for the atoms array.
     else if (which == 1) {
-        // Copy atoms to constant memory on the device.
-        CHECK(cudaMemcpyToSymbol(constAtoms, atoms, sizeof(atom) * numAtoms));
-
         dim3 blockDim(THREADSPERBLOCK, 1, 1);
         dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK), 1, 1);
-        d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtoms);
+
+        // Splitting the atoms array into sections to reduce the number of atoms in constant memory
+        int numAtomsRemaining = numAtoms;
+        for (int i = 0; i < numAtoms/MAXCONSTANTATOMS; i++){
+            // Copy atoms to constant memory on the device.
+            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
+            d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
+            if (numAtomsRemaining < MAXCONSTANTATOMS) {
+                CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
+                d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
+            }
+            
+        }
     }
     // Using a 2D kernel. 
     else if (which == 2) {
@@ -148,7 +158,7 @@ __global__ void d_discombulateKernel(float * energyGrid, const atom *atoms, dim3
                         energy += atoms[n].charge / sqrtf(dx * dx + dy * dy + dz * dz);
                     }
                     // Write the resulting energy back to the grid index.
-                    energyGrid[grid.x * grid.y * i + grid.x * j + (blockIdx.x * blockDim.x + threadIdx.x)] = energy; 
+                    energyGrid[gridIndex] = energy + oldEnergy; 
                     __syncthreads();
             }
         }
@@ -228,10 +238,12 @@ __global__ void d_discombulateKernelConst2D(float * energyGrid, dim3 grid, float
         float y = gridSpacing * (float) idY;                    // Y-index on the grid for the current thread.
         // For each z-index into the grid
         for (i = 0; i < grid.z; i++) {                          // The z-index of the current slice. 
+            // Calculate the grid index
+            int gridIndex = grid.x * grid.y * i + grid.x * idY + idX;
             float z = gridSpacing * (float) i;                  
             float energy = 0.0f;
             // load early to offset loading time before use
-            float oldEnergy = energyGrid[gridIndex];
+            float oldEnergy = energyGrid[gridIndex];            // 
             for (n = 0; n < numAtoms; n++) {
                 float dx = x - constAtoms[n].x;
                 float dy = y - constAtoms[n].y;
