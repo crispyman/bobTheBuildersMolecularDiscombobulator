@@ -30,7 +30,7 @@ int main(int argc, char * argv[])
     // Get the file name and parse it.
     char delim = ' ';
     int numAtoms = 0;
-    char* file = "short_stripped_alinin.pqr";
+    char* file = "stripped_alinin.pqr";
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
     // Read the molecule file and write the atoms to an array of atoms.
     atom * atoms = readMolecule(csvParser, &numAtoms);
@@ -249,7 +249,7 @@ int checkGrid(float *ref, float *check, int gridLength) {
     for (int i = 0; i < gridLength; i++) {
         if (output[i] != correct[i]) {
             printf("Incorrect value at [%d]\n", i);
-            printf("%f != %f\n", output[i], correct[i]);
+            printf("Actual: %f != Expected: %f\n", output[i], correct[i]);
 
             //unixError(errorMsg);
             return 1;
