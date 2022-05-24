@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <limits>
 #include "molecule.h"
 #include "csvparser.h"
 #include "csvwriter.h"
@@ -19,9 +20,9 @@
 
 int getMoleculeLength(CsvRow * csvRow);
 atom * readMolecule(CsvParser * csvParser, int* atomCnt);
-int checkGrid(float *ref, float *check, int gridLength);
+int checkGrid(double *ref, double *check, int gridLength);
 void printAtoms(atom * atoms, int numAtoms);
-void writeGrid(float * data, int gridLength);
+void writeGrid(double * data, int gridLength);
 
 
 
@@ -41,13 +42,13 @@ int main(int argc, char * argv[])
     CsvParser_destroy(csvParser);
     // Allocate the molecule array.
     //float * molecule = (float *) malloc(sizeof(float) * 4 * numAtoms);
-    float maxX = 0;
-    float maxY = 0;
-    float maxZ = 0;
+    double maxX = 0;
+    double maxY = 0;
+    double maxZ = 0;
 
-    float minX = 0;
-    float minY = 0;
-    float minZ = 0;
+    double minX = 0;
+    double minY = 0;
+    double minZ = 0;
 
     for (int i = 0; i < numAtoms; i++){
         // printf("%f, %f, %f, %f\n",// atoms[i].name,
@@ -80,17 +81,16 @@ int main(int argc, char * argv[])
     int dimY  = (int) ((abs(maxY) + PADDING) + (int) (abs(minY) + PADDING)) * (1/GRIDSPACING);
     int dimZ = (int) ((abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING))* (1/GRIDSPACING);
 
+    // Normalize positions for padding. 
     for (int i = 0; i < numAtoms; i++) {
         atoms[i].x  += (abs(minX) + PADDING);
         atoms[i].y += (abs(minY) + PADDING);
         atoms[i].z += (abs(minZ) + PADDING);
-
-
     }
     // printf("%d * %d * %d * %lu = %lu\n",dimX, dimY, dimZ, sizeof(float), dimX * dimY * dimZ * sizeof(float));
 
     // CPU
-    float * energyGrid_cpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    double * energyGrid_cpu = (double *) malloc(sizeof(double) * dimX * dimY * dimZ);
     assert(energyGrid_cpu);
     float h_time = discombob_on_cpu(energyGrid_cpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
     writeGrid(energyGrid_cpu, dimX * dimY * dimZ);
@@ -102,7 +102,7 @@ int main(int argc, char * argv[])
 
 
     // GPU
-    float * energyGrid_gpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    double * energyGrid_gpu = (double *) malloc(sizeof(double) * dimX * dimY * dimZ);
     assert(energyGrid_gpu);
 
     float d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
@@ -115,7 +115,7 @@ int main(int argc, char * argv[])
 
     // GPU Const
     d_time = 0;
-    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+    memset(energyGrid_gpu, 0 , sizeof(double) * dimX * dimY * dimZ);
 
     d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
 
@@ -126,7 +126,7 @@ int main(int argc, char * argv[])
 
 
 
-/*     // GPU Const 2D
+ /*    // GPU Const 2D
     d_time = 0;
     memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
 
@@ -137,8 +137,8 @@ int main(int argc, char * argv[])
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
 
-
-    // GPU Const 3D
+ */
+/*     // GPU Const 3D
     d_time = 0;
     memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
 
@@ -149,8 +149,8 @@ int main(int argc, char * argv[])
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
 
-
-    free(atoms); */
+ */
+    free(atoms);
     //free(molecule);
 
     free(energyGrid_cpu);
@@ -199,10 +199,8 @@ atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
     CsvRow * csvRow = CsvParser_getRow(csvParser);
     // delete the row because we don't need it
     CsvParser_destroy_row(csvRow);
-
-    // printf("Number of atoms: %d", *atomCnt);
+    
     // Loop through all lines in the file until the END record.
-
     for (int i = 0; i < *atomCnt; i++){
         // Skip any record that is not an atom.
         csvRow = CsvParser_getRow(csvParser);
@@ -215,10 +213,10 @@ atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
         if (strcmp(*CsvParser_getFields(csvRow), "ATOM") == 0) {
 
             //strcpy(atoms[i].name, csvRow->fields_[2]);
-            atoms[i].x = strtof(csvRow->fields_[5], NULL);
-            atoms[i].y = strtof(csvRow->fields_[6], NULL);
-            atoms[i].z = strtof(csvRow->fields_[7], NULL);
-            atoms[i].charge = strtof(csvRow->fields_[8], NULL);
+            atoms[i].x = strtod(csvRow->fields_[5], NULL);
+            atoms[i].y = strtod(csvRow->fields_[6], NULL);
+            atoms[i].z = strtod(csvRow->fields_[7], NULL);
+            atoms[i].charge = strtod(csvRow->fields_[8], NULL);
             CsvParser_destroy_row(csvRow);
 
         }
@@ -242,12 +240,17 @@ void printAtoms(atom * atoms, int numAtoms) {
     }
 }
 
+bool fequal(double a, double b)
+{
+ return fabs(a-b) < __DBL_EPSILON__;
+}
 
-int checkGrid(float *ref, float *check, int gridLength) {
-    float*correct = (float *) ref;
-    float*output = (float *) check;
+
+int checkGrid(double *ref, double *check, int gridLength) {
+    double*correct = (double *) ref;
+    double*output = (double *) check;
     for (int i = 0; i < gridLength; i++) {
-        if (output[i] != correct[i]) {
+        if (fequal(output[i], correct[i])) {
             printf("Incorrect value at [%d]\n", i);
             printf("Actual: %f != Expected: %f\n", output[i], correct[i]);
 
@@ -261,7 +264,7 @@ int checkGrid(float *ref, float *check, int gridLength) {
 }
 
 
-void writeGrid(float * data, int gridLength){
+void writeGrid(double * data, int gridLength){
     char buf[1024];
     float max = 1;
     CsvWriter *csvWriter = CsvWriter_new("cpuopt.csv", ",", 0);

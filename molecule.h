@@ -12,11 +12,10 @@ typedef struct energyGrid {
 } energyGrid;
 
 typedef struct atom {
-    //char name[4];
-    float x;
-    float y;
-    float z;
-    float charge;
+    double x;
+    double y;
+    double z;
+    double charge;
 } atom;
 
 typedef struct molecule {
