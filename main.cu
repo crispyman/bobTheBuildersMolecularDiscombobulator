@@ -226,13 +226,13 @@ int checkGrid(float *ref, float *check, int gridLength, const char* kernelName) 
     float*output = (float *) check;
     for (int i = 0; i < gridLength; i++) {
         if (fequal(correct[i], ref[i])) {
-            printf("\e[1;31m%s\e[0m priduced incorrect value at [%d]\n",kernelName, i);
+            printf("\e[1;31m%s\e[0m priduced an incorrect value at [%d]\n",kernelName, i);
             printf("Actual: %f != Expected: %f\n", output[i], correct[i]);
             return 1;
         }
     }
 
-    printf("\e[1;32m%s\e[0m produced correct grid.\n", kernelName);
+    printf("\e[1;32m%s\e[0m produced a correct grid.\n", kernelName);
     return 0;
 }
 
