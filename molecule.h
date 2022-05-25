@@ -12,7 +12,6 @@ typedef struct energyGrid {
 } energyGrid;
 
 typedef struct atom {
-    //char name[4];
     float x;
     float y;
     float z;
