@@ -143,7 +143,7 @@ int main(int argc, char * argv[])
 
     returns: 
         count: A count of the number of 'ATOM' records in the pqr file.
-        
+
 */
 int getMoleculeLength(char * filepath) {
     // Open the file. 
@@ -226,7 +226,7 @@ void printAtoms(atom * atoms, int numAtoms) {
 */
 int fequal(float a, float b) {
     float diff = abs(a - b);
-    if (diff < PRECISIONTHRESH) {
+    if ((diff < PRECISIONTHRESH)  || (isinf(a) && isinf(b))) {
         // Equal
         return 0;
     }

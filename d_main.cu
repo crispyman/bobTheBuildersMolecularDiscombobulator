@@ -34,27 +34,18 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
     cudaEvent_t start_gpu, stop_gpu;
     float gpuMsecTime = -1;;
 
-
-
-
     CHECK(cudaEventCreate(&start_gpu));
     CHECK(cudaEventCreate(&stop_gpu));
 
     emptyKernel<<<1024, 1024>>>();
 
-
     CHECK(cudaEventRecord(start_gpu));
-
-
-
 
     int gridSize = sizeof(float) * dimX * dimY * dimZ;
     float * d_energyGrid;
     CHECK(cudaMalloc((void**)&d_energyGrid, gridSize));
     //zeros GPU memory since we want a zeroed energy grid to start with
     CHECK(cudaMemset(d_energyGrid, 0, gridSize));
-
-
 
     dim3 grid(dimX, dimY, dimZ);
 
@@ -154,7 +145,6 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
 __global__ void d_discombulateKernel(float * energyGrid, const atom *atoms, dim3 grid, float gridSpacing,
                                      int numAtoms) {
 
-
     int i, j, n;
     // check to ensure thread is supposed to be doing work
     if (blockDim.x * blockIdx.x + threadIdx.x < grid.x) {
@@ -174,11 +164,8 @@ __global__ void d_discombulateKernel(float * energyGrid, const atom *atoms, dim3
                         float dy = y - atoms[n].y;
                         float dz = z - atoms[n].z;
                         float charge = atoms[n].charge;
-                        if (dx != 0 || dy != 0 || dx != 0) {
-                            energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
-                        } else {
-                            energy += charge;
-                        }
+                        energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
+
                     }
                     // Write the resulting energy back to the grid index.
                     energyGrid[gridIndex] = energy + oldEnergy; 
@@ -202,7 +189,6 @@ __global__ void d_discombulateKernel(float * energyGrid, const atom *atoms, dim3
 __global__ void d_discombulateKernelConst(float * energyGrid, dim3 grid, float gridSpacing,
                                      int numAtoms) {
 
-
     int i, j, n;
     // check to ensure thread is supposed to be doing work
     if (blockDim.x * blockIdx.x + threadIdx.x < grid.x) {
@@ -221,16 +207,12 @@ __global__ void d_discombulateKernelConst(float * energyGrid, dim3 grid, float g
                         float dy = y - constAtoms[n].y;
                         float dz = z - constAtoms[n].z;
                         float charge = constAtoms[n].charge;
-                        if (dx != 0 || dy != 0 || dx != 0) {
-                            energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
-                        } else {
-                            energy += charge;
-                        }
+                        energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
+
                     }
                     // add old and new energy values and store them
                     energyGrid[gridIndex] = energy + oldEnergy;
                     __syncthreads();
-
                 }
             }
     }
@@ -276,11 +258,8 @@ __global__ void d_discombulateKernelConst2D(float * energyGrid, dim3 grid, float
                 float dy = y - constAtoms[n].y;
                 float dz = z - constAtoms[n].z;
                 float charge = constAtoms[n].charge;
-                if (dx != 0 || dy != 0 || dx != 0) {
-                    energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
-                } else {
-                    energy += charge;
-                }
+                energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
+
             }
             // add old and new energy values and store them
             energyGrid[gridIndex] = energy + oldEnergy;
@@ -319,11 +298,8 @@ __global__ void d_discombulateKernelConst3D(float * energyGrid, dim3 grid, float
             float dy = y - constAtoms[n].y;
             float dz = z - constAtoms[n].z;
             float charge = constAtoms[n].charge;
-            if (dx != 0 || dy != 0 || dx != 0) {
-                energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
-            } else {
-                energy += charge;
-            }
+            energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
+
         }
         // add old and new energy values and store them
         energyGrid[gridIndex] += energy + oldEnergy;

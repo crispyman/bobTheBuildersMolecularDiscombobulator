@@ -43,11 +43,7 @@ void discombob(float * energyGrid, atom *atoms, int dimX, int dimY, int dimZ, fl
                     float dy = y - atoms[n].y;
                     float dz = z - atoms[n].z;
                     float charge = atoms[n].charge;
-                    if (dx != 0 || dy != 0 || dx != 0) {
-                        energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
-                    } else {
-                        energy += charge;
-                    }
+                    energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
                 }
                 energyGrid[dimX*dimY*k + dimX*j + i] = energy;
             }
