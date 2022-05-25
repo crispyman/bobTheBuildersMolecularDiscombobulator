@@ -173,7 +173,12 @@ __global__ void d_discombulateKernel(float * energyGrid, const atom *atoms, dim3
                         float dx = x - atoms[n].x;
                         float dy = y - atoms[n].y;
                         float dz = z - atoms[n].z;
-                        energy += atoms[n].charge / sqrtf(dx * dx + dy * dy + dz * dz);
+                        float charge = atoms[n].charge;
+                        if (dx != 0 || dy != 0 || dx != 0) {
+                            energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
+                        } else {
+                            energy += charge;
+                        }
                     }
                     // Write the resulting energy back to the grid index.
                     energyGrid[gridIndex] = energy + oldEnergy; 
@@ -216,7 +221,11 @@ __global__ void d_discombulateKernelConst(float * energyGrid, dim3 grid, float g
                         float dy = y - constAtoms[n].y;
                         float dz = z - constAtoms[n].z;
                         float charge = constAtoms[n].charge;
-                        energy += charge / sqrtf(dx * dx + dy * dy + dz * dz);
+                        if (dx != 0 || dy != 0 || dx != 0) {
+                            energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
+                        } else {
+                            energy += charge;
+                        }
                     }
                     // add old and new energy values and store them
                     energyGrid[gridIndex] = energy + oldEnergy;
@@ -267,12 +276,15 @@ __global__ void d_discombulateKernelConst2D(float * energyGrid, dim3 grid, float
                 float dy = y - constAtoms[n].y;
                 float dz = z - constAtoms[n].z;
                 float charge = constAtoms[n].charge;
-                energy += charge / sqrtf(dx * dx + dy * dy + dz * dz);
+                if (dx != 0 || dy != 0 || dx != 0) {
+                    energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
+                } else {
+                    energy += charge;
+                }
             }
             // add old and new energy values and store them
             energyGrid[gridIndex] = energy + oldEnergy;
             __syncthreads();
-
         }
     }
 }
@@ -307,16 +319,17 @@ __global__ void d_discombulateKernelConst3D(float * energyGrid, dim3 grid, float
             float dy = y - constAtoms[n].y;
             float dz = z - constAtoms[n].z;
             float charge = constAtoms[n].charge;
-            energy += charge / sqrtf(dx * dx + dy * dy + dz * dz);
+            if (dx != 0 || dy != 0 || dx != 0) {
+                energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
+            } else {
+                energy += charge;
+            }
         }
         // add old and new energy values and store them
         energyGrid[gridIndex] += energy + oldEnergy;
         __syncthreads();
     }
 }
-
-
-
 
 // an empty kernel to improve timing?
 __global__ void emptyKernel()
