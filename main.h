@@ -1,6 +1,7 @@
 //
 // Created by andrewiii on 5/10/22.
 //
+#define MAXFILENAMELEN 32
 
 int fequal(float a, float b);
 int getMoleculeLength(CsvRow * csvRow);
