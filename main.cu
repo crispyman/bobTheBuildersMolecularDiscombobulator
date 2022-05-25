@@ -16,13 +16,17 @@
 #include "config.h"
 
 
-
 int main(int argc, char * argv[])
 {
     // Get the file name and parse it.
     char delim = ' ';
     int numAtoms = 0;
-    const char* file = "stripped_alinin.pqr";
+    if (argc != 2) {
+        printUsage();
+        exit(EXIT_SUCCESS);
+    }
+
+    const char* file = argv[1];
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
     // Read the molecule file and write the atoms to an array of atoms.
     atom * atoms = readMolecule(csvParser, &numAtoms);
@@ -264,5 +268,15 @@ void writeGrid(float * data, int gridLength, const char* fileName){
         }
     }
     CsvWriter_destroy(csvWriter);
-    // printf("\n%f\n", max);
+}
+
+/* 
+    Prints the usage of the program.
+*/
+void printUsage() {
+    printf("Usage: \n");
+    printf("    Please enter the name of the .pqr file that you \n");
+    printf("    would like to analyze. Ensure that the file has had \n");
+    printf("    all whitespaces stripped to be only one space character. \n");
+    printf("        ex: ./main stripped_alinin.pqr\n");
 }
