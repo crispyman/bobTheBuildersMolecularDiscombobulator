@@ -1,10 +1,10 @@
-/* //
+//
 // Created by andrewiii on 5/10/22.
 //
-typedef struct atom {
-    char name[3];
-    float x;
-    float y;
-    float z;
-} atom;
- */
+
+int fequal(float a, float b);
+int getMoleculeLength(CsvRow * csvRow);
+atom * readMolecule(CsvParser * csvParser, int* atomCnt);
+int checkGrid(float *ref, float *check, int gridLength);
+void printAtoms(atom * atoms, int numAtoms);
+void writeGrid(float * data, int gridLength);

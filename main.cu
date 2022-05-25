@@ -17,14 +17,6 @@
 
 
 
-int getMoleculeLength(CsvRow * csvRow);
-atom * readMolecule(CsvParser * csvParser, int* atomCnt);
-int checkGrid(float *ref, float *check, int gridLength);
-void printAtoms(atom * atoms, int numAtoms);
-void writeGrid(float * data, int gridLength);
-
-
-
 int main(int argc, char * argv[])
 {
     // Get the file name and parse it.
