@@ -242,16 +242,26 @@ void printAtoms(atom * atoms, int numAtoms) {
     }
 }
 
+/* 
+    fequal: Returns 1 if the two floating point values are more different than a threshold.
+*/
+int fequal(float a, float b) {
+    float diff = abs(a - b);
+    if (diff < PRECISIONTHRESH) {
+        // Equal
+        return 0;
+    }
+    // Not equal.
+    return 1;   
+}
 
 int checkGrid(float *ref, float *check, int gridLength) {
     float*correct = (float *) ref;
     float*output = (float *) check;
     for (int i = 0; i < gridLength; i++) {
-        if (output[i] != correct[i]) {
+        if (fequal(correct[i], ref[i])) {
             printf("Incorrect value at [%d]\n", i);
             printf("Actual: %f != Expected: %f\n", output[i], correct[i]);
-
-            //unixError(errorMsg);
             return 1;
         }
     }
