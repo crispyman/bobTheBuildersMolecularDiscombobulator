@@ -68,7 +68,7 @@ int main(int argc, char * argv[])
     float * energyGrid_cpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_cpu);
     float h_time = discombob_on_cpu(energyGrid_cpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
-    writeGrid(energyGrid_cpu, dimX * dimY * dimZ);
+    writeGrid(energyGrid_cpu, dimX * dimY * dimZ, "cpu.csv");
 
     printf("\nTiming\n");
     printf("------\n");
@@ -84,6 +84,8 @@ int main(int argc, char * argv[])
     printf("GPU (0): \t\t%f msec\n", d_time);
     float speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
+    writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpusimple.csv");
+
 
     // GPU Const
     d_time = 0;
@@ -95,10 +97,12 @@ int main(int argc, char * argv[])
     printf("GPU(1): \t\t%f msec\n", d_time);
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
+    writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu1D.csv");
 
 
 
-/*     // GPU Const 2D
+
+    // GPU Const 2D
     d_time = 0;
     memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
 
@@ -108,6 +112,8 @@ int main(int argc, char * argv[])
     printf("GPU (2): \t\t%f msec\n", d_time);
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
+    writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu2D.csv");
+
 
 
     // GPU Const 3D
@@ -120,9 +126,10 @@ int main(int argc, char * argv[])
     printf("GPU (3): \t\t%f msec\n", d_time);
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
+    writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu3D.csv");
 
 
-    free(atoms); */
+    free(atoms); 
     //free(molecule);
 
     free(energyGrid_cpu);
@@ -225,15 +232,15 @@ int checkGrid(float *ref, float *check, int gridLength, const char* kernelName) 
         }
     }
 
-    printf("\1;32m%s\e[0m produced correct grid.\n", kernelName);
+    printf("\e[1;32m%s\e[0m produced correct grid.\n", kernelName);
     return 0;
 }
 
 
-void writeGrid(float * data, int gridLength){
+void writeGrid(float * data, int gridLength, const char* fileName){
     char buf[1024];
     float max = 1;
-    CsvWriter *csvWriter = CsvWriter_new("cpuopt.csv", ",", 0);
+    CsvWriter *csvWriter = CsvWriter_new(fileName, ",", 0);
     for (int i = 0; i < gridLength; i++){
         if (data[i] > max)
             max = data[i];
@@ -244,5 +251,5 @@ void writeGrid(float * data, int gridLength){
         }
     }
     CsvWriter_destroy(csvWriter);
-    printf("\n%f\n", max);
+    // printf("\n%f\n", max);
 }
