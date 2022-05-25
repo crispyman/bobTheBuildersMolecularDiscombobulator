@@ -68,7 +68,6 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
         dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK), 1, 1);
         d_discombulateKernel<<<gridDim, blockDim>>>(d_energyGrid, d_atoms, grid, gridSpacing, numAtoms);
 
-
         CHECK(cudaFree(d_atoms));
     }
     // Same kernel as previous, but this time using constant memory for the atoms array.
@@ -82,31 +81,50 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
             // Copy atoms to constant memory on the device.
             CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
             d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
+            numAtomsRemaining -= MAXCONSTANTATOMS;
             if (numAtomsRemaining < MAXCONSTANTATOMS) {
                 CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
                 d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
             }
-            
         }
     }
     // Using a 2D kernel. 
     else if (which == 2) {
-        // Copy atoms to constant memory on the device.
-        CHECK(cudaMemcpyToSymbol(constAtoms, atoms, sizeof(atom) * numAtoms));
-
+        // Define kernel dimensions outside of loop
         dim3 blockDim(THREADSPERBLOCK2D, THREADSPERBLOCK2D, 1);
         dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK2D), ceil((1.0 * dimY) / THREADSPERBLOCK2D), 1);
-        d_discombulateKernelConst2D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtoms);
+        // Break the atoms array into smaller parts to allow for larger atom lists.
+        int numAtomsRemaining = numAtoms;
+        for (int i = 0; i < numAtoms/MAXCONSTANTATOMS; i++){
+            // Copy atoms to constant memory on the device.
+            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
+            d_discombulateKernelConst2D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
+            numAtomsRemaining -= MAXCONSTANTATOMS;
+            if (numAtomsRemaining < MAXCONSTANTATOMS) {
+                CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
+                d_discombulateKernelConst2D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
+            }
+        }
     }
     // Using 3D Kernel
     else if (which == 3) {
-        // Copy atoms array to constant memory.
-        CHECK(cudaMemcpyToSymbol(constAtoms, atoms, sizeof(atom) * numAtoms));
-
+        // Define the dimensions of the kernel
         dim3 blockDim(THREADSPERBLOCK3D, THREADSPERBLOCK3D, THREADSPERBLOCK3D);
         // Number of blocks in each direction (x, y, z) is the dimension of the block in that direction/THREADSPERBLOCK3D.
         dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK3D), ceil((1.0 * dimY) / THREADSPERBLOCK3D), ceil((1.0 * dimZ) / THREADSPERBLOCK3D));
-        d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtoms);
+                // Break the atoms array into smaller parts to allow for larger atom lists.
+        // Break the atoms array into smaller parts to allow for larger atom lists.
+        int numAtomsRemaining = numAtoms;
+        for (int i = 0; i < numAtoms/MAXCONSTANTATOMS; i++){
+            // Copy atoms to constant memory on the device.
+            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
+            d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
+            numAtomsRemaining -= MAXCONSTANTATOMS;
+            if (numAtomsRemaining < MAXCONSTANTATOMS) {
+                CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
+                d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
+            }
+        }
     }
     // Copies results to host
     CHECK(cudaMemcpy(energyGrid, d_energyGrid, gridSize, cudaMemcpyDeviceToHost));
