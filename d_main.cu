@@ -32,7 +32,7 @@ __constant__ atom constAtoms[MAXCONSTANTATOMS];
 
 int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int dimZ, float gridSpacing,  int numAtoms, int which){
     cudaEvent_t start_gpu, stop_gpu;
-    float gpuMsecTime = -1;;
+    float gpuMsecTime = -1;
 
     CHECK(cudaEventCreate(&start_gpu));
     CHECK(cudaEventCreate(&stop_gpu));
