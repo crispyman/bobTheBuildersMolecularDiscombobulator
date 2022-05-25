@@ -17,7 +17,6 @@
 #include "config.h"
 
 
-
 int getMoleculeLength(CsvRow * csvRow);
 atom * readMolecule(CsvParser * csvParser, int* atomCnt);
 int checkGrid(double *ref, double *check, int gridLength);
@@ -126,9 +125,9 @@ int main(int argc, char * argv[])
 
 
 
- /*    // GPU Const 2D
+    // GPU Const 2D
     d_time = 0;
-    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+    memset(energyGrid_gpu, 0 , sizeof(double) * dimX * dimY * dimZ);
 
     d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 2);
 
@@ -137,10 +136,10 @@ int main(int argc, char * argv[])
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
 
- */
-/*     // GPU Const 3D
+
+    // GPU Const 3D
     d_time = 0;
-    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+    memset(energyGrid_gpu, 0 , sizeof(double) * dimX * dimY * dimZ);
 
     d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 3);
 
@@ -149,7 +148,7 @@ int main(int argc, char * argv[])
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
 
- */
+
     free(atoms);
     //free(molecule);
 
@@ -242,18 +241,18 @@ void printAtoms(atom * atoms, int numAtoms) {
 
 bool fequal(double a, double b)
 {
- return fabs(a-b) < __DBL_EPSILON__;
+    double diff = fabs(a-b);
+    
+    return diff < .00001;
 }
-
 
 int checkGrid(double *ref, double *check, int gridLength) {
     double*correct = (double *) ref;
     double*output = (double *) check;
     for (int i = 0; i < gridLength; i++) {
-        if (fequal(output[i], correct[i])) {
+        if (!fequal(output[i], correct[i])) {
             printf("Incorrect value at [%d]\n", i);
             printf("Actual: %f != Expected: %f\n", output[i], correct[i]);
-
             //unixError(errorMsg);
             return 1;
         }
