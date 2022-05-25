@@ -73,10 +73,11 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
             CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
             d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
             numAtomsRemaining -= MAXCONSTANTATOMS;
-            if (numAtomsRemaining < MAXCONSTANTATOMS) {
-                CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
-                d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
-            }
+
+        }
+        if (numAtomsRemaining < MAXCONSTANTATOMS) {
+            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining], sizeof(atom) * numAtomsRemaining));
+            d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
         }
     }
     // Using a 2D kernel. 
@@ -91,10 +92,11 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
             CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
             d_discombulateKernelConst2D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
             numAtomsRemaining -= MAXCONSTANTATOMS;
-            if (numAtomsRemaining < MAXCONSTANTATOMS) {
-                CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
-                d_discombulateKernelConst2D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
-            }
+
+        }
+        if (numAtomsRemaining < MAXCONSTANTATOMS) {
+            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining], sizeof(atom) * numAtomsRemaining));
+            d_discombulateKernelConst2D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
         }
     }
     // Using 3D Kernel
@@ -111,10 +113,11 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
             CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
             d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
             numAtomsRemaining -= MAXCONSTANTATOMS;
-            if (numAtomsRemaining < MAXCONSTANTATOMS) {
-                CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
-                d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
-            }
+
+        }
+        if (numAtomsRemaining < MAXCONSTANTATOMS) {
+            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining], sizeof(atom) * numAtomsRemaining));
+            d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
         }
     }
     // Copies results to host
