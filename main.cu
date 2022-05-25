@@ -22,7 +22,7 @@ int main(int argc, char * argv[])
     // Get the file name and parse it.
     char delim = ' ';
     int numAtoms = 0;
-    char* file = "stripped_alinin.pqr";
+    const char* file = "stripped_alinin.pqr";
     CsvParser * csvParser = CsvParser_new(file, &delim, 0);
     // Read the molecule file and write the atoms to an array of atoms.
     atom * atoms = readMolecule(csvParser, &numAtoms);
@@ -100,8 +100,6 @@ int main(int argc, char * argv[])
     writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu1D.csv");
 
 
-
-
     // GPU Const 2D
     d_time = 0;
     memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
@@ -113,7 +111,6 @@ int main(int argc, char * argv[])
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
     writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu2D.csv");
-
 
 
     // GPU Const 3D
@@ -142,25 +139,41 @@ int main(int argc, char * argv[])
     getMoleculeLength
     Assigns the number of atoms in the molecule to atomCount
 
-    csvParser: A CsvParser that is parsing the file  that describes the molecule.
-    atomCount: The number of atoms in the molecule.
-*/
-void getMoleculeLength(CsvParser * csvParser, int * atomCount) {
-    // Make a copy of the csv parser.
-    int count = 0;
-    char delim = csvParser->delimiter_;
-    char * file = csvParser->filePath_;
-    CsvParser * countParser = CsvParser_new(file, &delim, 0);
+    filepath: A path to the pqr file describing the molecule
 
-    CsvRow * row = CsvParser_getRow(countParser);
-    while (strcmp(row->fields_[0], "END") != 0) {
-        if (strcmp(row->fields_[0], "ATOM") == 0) {
+    returns: 
+        count: A count of the number of 'ATOM' records in the pqr file.
+        
+*/
+int getMoleculeLength(char * filepath) {
+    // Open the file. 
+    char str[20];
+    FILE *fptr;
+    fptr = fopen(filepath, "r");
+
+
+    char *pos;
+    int index, count;
+    
+    count = 0;
+    // Read from the file until we reach the end.
+    while ((fgets(str, 20, fptr)) != NULL)
+    {
+        index = 0;
+        // While strstr doesnt return NULL.
+        // Index and pos are needed to make so this is not an
+        // infinite loop. strstr simply returns the 
+        while ((pos = strstr(str + index, "ATOM")) != NULL)
+        {
+            // Update the current index to be the location
+            // ATOM was found and increment by 1 to avoid 
+            // recounting it. 
+            index = (pos - str) + 1;
             count++;
         }
-        row = CsvParser_getRow(countParser);
     }
-    *atomCount = count;
-}
+    return count;
+} 
 
 /*
     readMolecule
@@ -171,7 +184,7 @@ void getMoleculeLength(CsvParser * csvParser, int * atomCount) {
 */
 atom * readMolecule(CsvParser * csvParser, int* atomCnt) {
     // Get the number of atoms in the molecule.
-    getMoleculeLength(csvParser, atomCnt);
+    *atomCnt = getMoleculeLength(csvParser->filePath_);
     // Allocate an array of atoms.
     atom * atoms = (atom *) calloc(*atomCnt, sizeof(atom));
     // Get the first row of the file.
