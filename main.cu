@@ -239,18 +239,22 @@ void printAtoms(atom * atoms, int numAtoms) {
     }
 }
 
-bool fequal(double a, double b)
-{
+/* 
+    fequal: Compares 2 double values and returns true if they are within a tolerance. 
+*/
+bool fequal(double a, double b, double epsilon) {
     double diff = fabs(a-b);
-    
-    return diff < .00001;
+    if (diff > .01) {
+        return false;
+    }
+    return true;
 }
 
 int checkGrid(double *ref, double *check, int gridLength) {
     double*correct = (double *) ref;
     double*output = (double *) check;
     for (int i = 0; i < gridLength; i++) {
-        if (!fequal(output[i], correct[i])) {
+        if (!fequal(output[i], correct[i], PRECISION_THRESH)) {
             printf("Incorrect value at [%d]\n", i);
             printf("Actual: %f != Expected: %f\n", output[i], correct[i]);
             //unixError(errorMsg);
