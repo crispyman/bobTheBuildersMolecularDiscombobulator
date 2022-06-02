@@ -72,7 +72,7 @@ int main(int argc, char * argv[])
     float * energyGrid_cpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_cpu);
     float h_time = discombob_on_cpu(energyGrid_cpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
-    writeGrid(energyGrid_cpu, dimX * dimY * dimZ, "cpu.csv");
+    //writeGrid(energyGrid_cpu, dimX * dimY * dimZ, "cpu.csv");
 
     printf("\nTiming\n");
     printf("------\n");
@@ -88,7 +88,7 @@ int main(int argc, char * argv[])
     printf("GPU (0): \t\t%f msec\n", d_time);
     float speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
-    writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpusimple.csv");
+    //writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpusimple.csv");
 
 
     // GPU Const
@@ -101,7 +101,7 @@ int main(int argc, char * argv[])
     printf("GPU(1): \t\t%f msec\n", d_time);
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
-    writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu1D.csv");
+    writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "2D.csv");
 
 
     // GPU Const 2D
@@ -114,7 +114,7 @@ int main(int argc, char * argv[])
     printf("GPU (2): \t\t%f msec\n", d_time);
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
-    writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu2D.csv");
+    //writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "gpu2D.csv");
 
 
     // GPU Const 3D
@@ -127,7 +127,7 @@ int main(int argc, char * argv[])
     printf("GPU (3): \t\t%f msec\n", d_time);
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
-    writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu3D.csv");
+    //writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu3D.csv");
 
 
     free(atoms); 
@@ -254,18 +254,26 @@ int checkGrid(float *ref, float *check, int gridLength, const char* kernelName) 
 }
 
 
-void writeGrid(float * data, int gridLength, const char* fileName){
+void writeGrid(float * data, int X, int Y, int Z, const char* fileName){
     char buf[1024];
     float max = 1;
     CsvWriter *csvWriter = CsvWriter_new(fileName, ",", 0);
-    for (int i = 0; i < gridLength; i++){
-        if (data[i] > max)
-            max = data[i];
-        gcvt(data[i], 25, buf);
-        if (CsvWriter_writeField(csvWriter, buf)) {
-            printf("Error: %s\n", CsvWriter_getErrorMessage(csvWriter));
-            break;
+    for (int i = 0; i < X; i++){
+        for (int j = 0; j < Y; j++){
+            double temp = 0;
+            for (int k = 0; k < Z; k++){
+                temp += data[i * Y * Z + j * Z + k];
+            }
+            temp /= Z;
+            if (temp > max)
+                max = temp;
+            gcvt(temp, 25, buf);
+            if (CsvWriter_writeField(csvWriter, buf)) {
+                printf("Error: %s\n", CsvWriter_getErrorMessage(csvWriter));
+                break;
+            }
         }
+        CsvWriter_nextRow(csvWriter);
     }
     CsvWriter_destroy(csvWriter);
 }
