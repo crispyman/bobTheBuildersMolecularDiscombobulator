@@ -101,7 +101,7 @@ int main(int argc, char * argv[])
     printf("GPU(1): \t\t%f msec\n", d_time);
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
-    writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "2D.csv");
+    writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "H2O2D.csv");
 
 
     // GPU Const 2D
@@ -262,7 +262,7 @@ void writeGrid(float * data, int X, int Y, int Z, const char* fileName){
         for (int j = 0; j < Y; j++){
             double temp = 0;
             for (int k = 0; k < Z; k++){
-                temp += data[i * Y * Z + j * Z + k];
+                temp += data[k * Y * X + j * X + i];
             }
             temp /= Z;
             if (temp > max)
