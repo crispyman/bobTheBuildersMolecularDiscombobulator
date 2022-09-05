@@ -20,6 +20,9 @@ __global__ void d_discombulateKernelConst3D(float * energyGrid, dim3 grid, float
 
 static __global__ void emptyKernel();
 
+int get_device_by_ptr (void *ptr);
+
+
 /* 
     d_main.cu 
     Calculates an electrostatic potential grid for the molecule passed. 
@@ -30,29 +33,39 @@ static __global__ void emptyKernel();
 */
 __constant__ atom constAtoms[MAXCONSTANTATOMS];
 
-int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int dimZ, float gridSpacing,  int numAtoms, int which){
+int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int dimZ, float gridSpacing,  int numAtoms, int which) {
     cudaEvent_t start_gpu, stop_gpu;
     float gpuMsecTime = -1;
+    float device_count = 1.0f;
 
     CHECK(cudaEventCreate(&start_gpu));
     CHECK(cudaEventCreate(&stop_gpu));
 
-    emptyKernel<<<1024, 1024>>>();
-
+    for (int j = 0; j < device_count; j++) {
+        emptyKernel<<<1024, 1024>>>();
+    }
     CHECK(cudaEventRecord(start_gpu));
 
     int gridSize = sizeof(float) * dimX * dimY * dimZ;
-    float * d_energyGrid;
-    CHECK(cudaMalloc((void**)&d_energyGrid, gridSize));
-    //zeros GPU memory since we want a zeroed energy grid to start with
-    CHECK(cudaMemset(d_energyGrid, 0, gridSize));
+
+    float *d_energyGrid;
+
+    int grid_fraction = gridSize / device_count;
+
+
+    for (int j = 0; j < device_count; j++) {
+        cudaSetDevice(j);
+        CHECK(cudaMalloc((void **) &d_energyGrid, grid_fraction));
+        //zeros GPU memory since we want a zeroed energy grid to start with
+        CHECK(cudaMemset(d_energyGrid, 0, grid_fraction));
+    }
 
     dim3 grid(dimX, dimY, dimZ);
 
     // Selects which kernel to launch. 
     if (which == 0) {
-        atom * d_atoms;         // The array of atoms for the device. 
-        CHECK(cudaMalloc((void**)&d_atoms, numAtoms * sizeof(atom)));
+        atom *d_atoms;         // The array of atoms for the device.
+        CHECK(cudaMalloc((void **) &d_atoms, numAtoms * sizeof(atom)));
         CHECK(cudaMemcpy(d_atoms, atoms, numAtoms * sizeof(atom), cudaMemcpyHostToDevice));
 
         dim3 blockDim(THREADSPERBLOCK, 1, 1);
@@ -61,14 +74,14 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
 
         CHECK(cudaFree(d_atoms));
     }
-    // Same kernel as previous, but this time using constant memory for the atoms array.
+        // Same kernel as previous, but this time using constant memory for the atoms array.
     else if (which == 1) {
         dim3 blockDim(THREADSPERBLOCK, 1, 1);
         dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK), 1, 1);
 
         // Splitting the atoms array into sections to reduce the number of atoms in constant memory
         int numAtomsRemaining = numAtoms;
-        for (int i = 0; i < numAtoms/MAXCONSTANTATOMS; i++){
+        for (int i = 0; i < numAtoms / MAXCONSTANTATOMS; i++) {
             // Copy atoms to constant memory on the device.
             CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
             d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
@@ -76,18 +89,19 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
 
         }
         if (numAtomsRemaining < MAXCONSTANTATOMS) {
-            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining], sizeof(atom) * numAtomsRemaining));
+            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining],
+                                     sizeof(atom) * numAtomsRemaining));
             d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
         }
     }
-    // Using a 2D kernel. 
+        // Using a 2D kernel.
     else if (which == 2) {
         // Define kernel dimensions outside of loop
         dim3 blockDim(THREADSPERBLOCK2D, THREADSPERBLOCK2D, 1);
         dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK2D), ceil((1.0 * dimY) / THREADSPERBLOCK2D), 1);
         // Break the atoms array into smaller parts to allow for larger atom lists.
         int numAtomsRemaining = numAtoms;
-        for (int i = 0; i < numAtoms/MAXCONSTANTATOMS; i++){
+        for (int i = 0; i < numAtoms / MAXCONSTANTATOMS; i++) {
             // Copy atoms to constant memory on the device.
             CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
             d_discombulateKernelConst2D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
@@ -95,20 +109,22 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
 
         }
         if (numAtomsRemaining < MAXCONSTANTATOMS) {
-            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining], sizeof(atom) * numAtomsRemaining));
+            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining],
+                                     sizeof(atom) * numAtomsRemaining));
             d_discombulateKernelConst2D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
         }
     }
-    // Using 3D Kernel
+        // Using 3D Kernel
     else if (which == 3) {
         // Define the dimensions of the kernel
         dim3 blockDim(THREADSPERBLOCK3D, THREADSPERBLOCK3D, THREADSPERBLOCK3D);
         // Number of blocks in each direction (x, y, z) is the dimension of the block in that direction/THREADSPERBLOCK3D.
-        dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK3D), ceil((1.0 * dimY) / THREADSPERBLOCK3D), ceil((1.0 * dimZ) / THREADSPERBLOCK3D));
-                // Break the atoms array into smaller parts to allow for larger atom lists.
+        dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK3D), ceil((1.0 * dimY) / THREADSPERBLOCK3D),
+                     ceil((1.0 * dimZ) / THREADSPERBLOCK3D));
+        // Break the atoms array into smaller parts to allow for larger atom lists.
         // Break the atoms array into smaller parts to allow for larger atom lists.
         int numAtomsRemaining = numAtoms;
-        for (int i = 0; i < numAtoms/MAXCONSTANTATOMS; i++){
+        for (int i = 0; i < numAtoms / MAXCONSTANTATOMS; i++) {
             // Copy atoms to constant memory on the device.
             CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
             d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
@@ -116,14 +132,46 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
 
         }
         if (numAtomsRemaining < MAXCONSTANTATOMS) {
-            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining], sizeof(atom) * numAtomsRemaining));
+            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining],
+                                     sizeof(atom) * numAtomsRemaining));
             d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
         }
     }
-    // Copies results to host
-    CHECK(cudaMemcpy(energyGrid, d_energyGrid, gridSize, cudaMemcpyDeviceToHost));
+        // Using 3D Kernel on multiple GPUS
+    else if (which == 4) {
+        // Define the dimensions of the kernel
+        dim3 blockDim(THREADSPERBLOCK3D, THREADSPERBLOCK3D, THREADSPERBLOCK3D);
+        // Number of blocks in each direction (x, y, z) is the dimension of the block in that direction/THREADSPERBLOCK3D.
+        dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK3D), ceil((1.0 * dimY) / THREADSPERBLOCK3D),
+                     ceil((1.0 * dimZ) / THREADSPERBLOCK3D / device_count));
+        // Break the atoms array into smaller parts to allow for larger atom lists.
+        // Break the atoms array into smaller parts to allow for larger atom lists.
+        int numAtomsRemaining = numAtoms;
+        for (int i = 0; i < numAtoms / MAXCONSTANTATOMS; i++) {
+            // Copy atoms to constant memory on the device.
+            for (int j = 0; j < device_count; j++) {
+                cudaSetDevice(j);
+                CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
+                d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
+                numAtomsRemaining -= MAXCONSTANTATOMS;
+            }
 
-    CHECK(cudaFree(d_energyGrid));
+        }
+        for (int j = 0; j < device_count; j++) {
+            cudaSetDevice(j);
+            if (numAtomsRemaining < MAXCONSTANTATOMS) {
+                CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining],
+                                         sizeof(atom) * numAtomsRemaining));
+                d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
+            }
+        }
+    }
+    // Copies results to host
+    for (int j = 0; j < device_count; j++) {
+        cudaSetDevice(j);
+        CHECK(cudaMemcpy(energyGrid, d_energyGrid, gridSize, cudaMemcpyDeviceToHost));
+        CHECK(cudaFree(d_energyGrid));
+    }
 
     CHECK(cudaEventRecord(stop_gpu));
     CHECK(cudaEventSynchronize(stop_gpu));
@@ -313,4 +361,11 @@ __global__ void d_discombulateKernelConst3D(float * energyGrid, dim3 grid, float
 // an empty kernel to improve timing?
 __global__ void emptyKernel()
 {
+}
+
+int get_device_by_ptr (void *ptr)
+{
+    cudaPointerAttributes pointer_attributes;
+    cudaPointerGetAttributes (&pointer_attributes, ptr);
+    return pointer_attributes.device;
 }

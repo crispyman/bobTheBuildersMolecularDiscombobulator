@@ -7,6 +7,8 @@
 #include <ctype.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
 #include "molecule.h"
 #include "csvparser.h"
 #include "csvwriter.h"
@@ -78,9 +80,11 @@ int main(int argc, char * argv[])
     printf("------\n");
     printf("CPU: \t\t\t\t%f msec\n", h_time);
 
+
     // GPU
     float * energyGrid_gpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_gpu);
+    sleep(1);
 
     float d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
 
@@ -95,6 +99,9 @@ int main(int argc, char * argv[])
     d_time = 0;
     memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
 
+    sleep(1);
+
+
     d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
 
     checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "1D Const Kernel");
@@ -107,6 +114,7 @@ int main(int argc, char * argv[])
     // GPU Const 2D
     d_time = 0;
     memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+    sleep(1);
 
     d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 2);
 
@@ -119,7 +127,8 @@ int main(int argc, char * argv[])
 
     // GPU Const 3D
     d_time = 0;
-    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+    memset(energyGrid_gpu, 0, sizeof(float) * dimX * dimY * dimZ);
+    sleep(1);
 
     d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 3);
 
@@ -128,6 +137,26 @@ int main(int argc, char * argv[])
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
     //writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu3D.csv");
+
+
+
+
+    // GPU Const 3D Multi-GPU
+    d_time = 0;
+    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+    sleep(1);
+
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, (int)floor(dimZ), GRIDSPACING, numAtoms, 4);
+
+
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "3D Const Kernel Multi-GPU");
+    printf("GPU (4): \t\t%f msec\n", d_time);
+    speedup = h_time/d_time;
+    printf("Speedup: \t\t\t%f\n", speedup);
+    //writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu3D.csv");
+    sleep(1);
+
 
 
     free(atoms); 
