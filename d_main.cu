@@ -18,6 +18,9 @@ __global__ void d_discombulateKernelConst2D(float * energyGrid, dim3 grid, float
 __global__ void d_discombulateKernelConst3D(float * energyGrid, dim3 grid, float gridSpacing,
                                             int numAtoms);
 
+__global__ void d_discombulateKernelConst3DMultiGPU(float * energyGrid, dim3 grid, float gridSpacing,
+                                                    int gpuNum, int numAtoms);
+
 static __global__ void emptyKernel();
 
 int get_device_by_ptr (void *ptr);
@@ -38,6 +41,9 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
     float gpuMsecTime = -1;
     float device_count = 1.0f;
 
+    if (which < 4)
+        device_count = 1.0f;
+
     CHECK(cudaEventCreate(&start_gpu));
     CHECK(cudaEventCreate(&stop_gpu));
 
@@ -46,21 +52,21 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
     }
     CHECK(cudaEventRecord(start_gpu));
 
-    int gridSize = sizeof(float) * dimX * dimY * dimZ;
+    int gridSize = sizeof(float) * dimX * dimY * (dimZ/ device_count);
 
     float *d_energyGrid;
 
-    int grid_fraction = gridSize / device_count;
+    //int grid_fraction = gridSize;
 
 
     for (int j = 0; j < device_count; j++) {
         cudaSetDevice(j);
-        CHECK(cudaMalloc((void **) &d_energyGrid, grid_fraction));
+        CHECK(cudaMalloc((void **) &d_energyGrid, gridSize));
         //zeros GPU memory since we want a zeroed energy grid to start with
-        CHECK(cudaMemset(d_energyGrid, 0, grid_fraction));
+        CHECK(cudaMemset(d_energyGrid, 0, gridSize));
     }
 
-    dim3 grid(dimX, dimY, dimZ);
+    dim3 grid(dimX, dimY, dimZ/ device_count);
 
     // Selects which kernel to launch. 
     if (which == 0) {
@@ -152,7 +158,8 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
             for (int j = 0; j < device_count; j++) {
                 cudaSetDevice(j);
                 CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
-                d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
+                d_discombulateKernelConst3DMultiGPU<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing,
+                                                                           j, MAXCONSTANTATOMS);
                 numAtomsRemaining -= MAXCONSTANTATOMS;
             }
 
@@ -162,14 +169,17 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
             if (numAtomsRemaining < MAXCONSTANTATOMS) {
                 CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining],
                                          sizeof(atom) * numAtomsRemaining));
-                d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
+                d_discombulateKernelConst3DMultiGPU<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing,
+                                                                           j, numAtomsRemaining);
+
+
             }
         }
     }
     // Copies results to host
     for (int j = 0; j < device_count; j++) {
         cudaSetDevice(j);
-        CHECK(cudaMemcpy(energyGrid, d_energyGrid, gridSize, cudaMemcpyDeviceToHost));
+        CHECK(cudaMemcpy((energyGrid + gridSize * j), d_energyGrid, gridSize, cudaMemcpyDeviceToHost));
         CHECK(cudaFree(d_energyGrid));
     }
 
@@ -340,6 +350,44 @@ __global__ void d_discombulateKernelConst3D(float * energyGrid, dim3 grid, float
         float x = gridSpacing * (float) idX;
         float y = gridSpacing * (float) idY;
         float z = gridSpacing * (float) idZ;
+        int gridIndex = grid.x * grid.y * idZ + grid.x * idY + idX;
+        float energy = 0.0f;
+        // load early to offset loading time before use
+        float oldEnergy = energyGrid[gridIndex];
+        for (n = 0; n < numAtoms; n++) {
+            float dx = x - constAtoms[n].x;
+            float dy = y - constAtoms[n].y;
+            float dz = z - constAtoms[n].z;
+            float charge = constAtoms[n].charge;
+            energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
+
+        }
+        // add old and new energy values and store them
+        energyGrid[gridIndex] += energy + oldEnergy;
+        __syncthreads();
+    }
+}
+
+__global__ void d_discombulateKernelConst3DMultiGPU(float * energyGrid, dim3 grid, float gridSpacing, int gpuNum,
+                                            int numAtoms) {
+
+/*
+    OVERALL SUMMARY:
+    Basically the same kernel as the previous constant kernel, but in this case, each thread handles
+    only one (x,y,z).
+*/
+
+    int n;
+    // computes indexes in x, y, and z axis from block and thread
+    int idX = blockDim.x * blockIdx.x + threadIdx.x;
+    int idY = blockDim.y * blockIdx.y + threadIdx.y;
+    int idZ = blockDim.z * blockIdx.z + threadIdx.z;
+
+    // check to ensure thread is supposed to be doing work
+    if (idX < grid.x && idY < grid.y && idZ < grid.z) {
+        float x = gridSpacing * (float) idX;
+        float y = gridSpacing * (float) idY;
+        float z = gridSpacing * (float) idZ + blockDim.z * gpuNum * grid.x * grid.y;
         int gridIndex = grid.x * grid.y * idZ + grid.x * idY + idX;
         float energy = 0.0f;
         // load early to offset loading time before use
