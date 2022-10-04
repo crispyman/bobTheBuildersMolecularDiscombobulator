@@ -146,7 +146,7 @@ int main(int argc, char * argv[])
     memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
     sleep(1);
 
-    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, (int)floor(dimZ), GRIDSPACING, numAtoms, 4);
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 4);
 
 
 

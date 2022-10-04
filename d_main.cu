@@ -39,10 +39,10 @@ __constant__ atom constAtoms[MAXCONSTANTATOMS];
 int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int dimZ, float gridSpacing,  int numAtoms, int which) {
     cudaEvent_t start_gpu, stop_gpu;
     float gpuMsecTime = -1;
-    float device_count = 2.0f;
+    int device_count = 2;
 
     if (which < 4)
-        device_count = 1.0f;
+        device_count = 1;
 
     CHECK(cudaEventCreate(&start_gpu));
     CHECK(cudaEventCreate(&stop_gpu));
@@ -52,9 +52,9 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
     }
     CHECK(cudaEventRecord(start_gpu));
 
-    int gridSize = sizeof(float) * dimX * dimY * ceil((dimZ/ device_count));
+    int gridSize = sizeof(float) * floor((dimX * dimY * dimZ)/ (float)device_count);
 
-    float *d_energyGrid[(int)device_count];
+    float *d_energyGrid[device_count];
 
     //int grid_fraction = gridSize;
 
@@ -66,7 +66,7 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
         CHECK(cudaMemset(d_energyGrid[j], 0, gridSize));
     }
 
-    dim3 grid(dimX, dimY, dimZ/ device_count);
+    dim3 grid(dimX, dimY, floor(dimZ/ (float)device_count));
 
     // Selects which kernel to launch. 
     if (which == 0) {
@@ -149,7 +149,7 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
         dim3 blockDim(THREADSPERBLOCK3D, THREADSPERBLOCK3D, THREADSPERBLOCK3D);
         // Number of blocks in each direction (x, y, z) is the dimension of the block in that direction/THREADSPERBLOCK3D.
         dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK3D), ceil((1.0 * dimY) / THREADSPERBLOCK3D),
-                     ceil((1.0 * dimZ/ device_count) / THREADSPERBLOCK3D) );
+                     floor((1.0 * dimZ/ device_count) / THREADSPERBLOCK3D) );
         // Break the atoms array into smaller parts to allow for larger atom lists.
         // Break the atoms array into smaller parts to allow for larger atom lists.
         int numAtomsRemaining = numAtoms;
@@ -179,7 +179,8 @@ int d_discombobulate(float * energyGrid, atom * atoms, int dimX, int dimY, int d
     // Copies results to host
     for (int j = 0; j < device_count; j++) {
         cudaSetDevice(j);
-        CHECK(cudaMemcpy(energyGrid + gridSize * j, d_energyGrid[j], gridSize, cudaMemcpyDeviceToHost));
+        printf("%lu, %lu, %lu\n", (u_int64_t)j, (u_int64_t)(gridSize * j + gridSize), sizeof(float) * dimX * dimY * dimZ);
+        CHECK(cudaMemcpy(energyGrid + gridSize * j, (void **)d_energyGrid[j], gridSize, cudaMemcpyDeviceToHost));
         CHECK(cudaFree(d_energyGrid[j]));
     }
 
