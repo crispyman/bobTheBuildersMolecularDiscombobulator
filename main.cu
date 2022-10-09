@@ -61,7 +61,7 @@ int main(int argc, char * argv[])
 
     int dimX  = (int) ((abs(maxX) + PADDING) + (int) (abs(minX) + PADDING)) * (1/GRIDSPACING);
     int dimY  = (int) ((abs(maxY) + PADDING) + (int) (abs(minY) + PADDING)) * (1/GRIDSPACING);
-    int dimZ = (int) ((abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING))* (1/GRIDSPACING);
+    int dimZ = (int) ((abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING))* (1/GRIDSPACING) + 2;
 
     // Shift the coordinates of all atoms to be positive plus padding.
     for (int i = 0; i < numAtoms; i++) {
@@ -145,8 +145,7 @@ int main(int argc, char * argv[])
     d_time = 0;
     memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
     sleep(1);
-
-    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 4);
+    d_time = d_discombobulate_multi_GPU(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
 
 
 
@@ -258,22 +257,23 @@ void printAtoms(atom * atoms, int numAtoms) {
     fequal: Returns 1 if the two floating point values are more different than a threshold.
 */
 int fequal(float a, float b) {
-    float diff = abs(a - b);
+    double diff = fabs(a - b);
     if ((diff < PRECISIONTHRESH)  || (isinf(a) && isinf(b))) {
         // Equal
         return 0;
     }
     // Not equal.
+//    printf("%.10lf %.10lf\n", diff, PRECISIONTHRESH);
+
     return 1;
 }
 
 int checkGrid(float *ref, float *check, int gridLength, const char* kernelName) {
-    float*correct = (float *) ref;
-    float*output = (float *) check;
+
     for (int i = 0; i < gridLength; i++) {
-        if (fequal(correct[i], ref[i])) {
+        if (fequal(check[i], ref[i])) {
             printf("\e[1;31m%s\e[0m produced an incorrect value at [%d]\n",kernelName, i);
-            printf("Actual: %f != Expected: %f\n", output[i], correct[i]);
+            printf("Actual: %10f != Expected: %10f\n", check[i], ref[i]);
             return 1;
         }
     }
