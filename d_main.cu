@@ -415,8 +415,6 @@ __global__ void d_discombulateKernelConst3DMultiGPU(float * energyGrid, dim3 gri
         float y = gridSpacing * (float) idY;
         float z = gridSpacing * (float) (idZ + grid.z *  gpuNum);
         int gridIndex = grid.x * grid.y * idZ + grid.x * idY + idX;
-        if (gpuNum == 1 && gridIndex == 33396)
-            n = 0;
         float energy = 0.0f;
         // load early to offset loading time before use
         float oldEnergy = energyGrid[gridIndex];
@@ -425,12 +423,11 @@ __global__ void d_discombulateKernelConst3DMultiGPU(float * energyGrid, dim3 gri
             float dy = y - constAtoms[n].y;
             float dz = z - constAtoms[n].z;
             float charge = constAtoms[n].charge;
-            energy += charge/sqrt(dx*dx + dy*dy + dz*dz);
+            energy += charge/sqrtf(dx*dx + dy*dy + dz*dz);
 
         }
         // add old and new energy values and store them
         energyGrid[gridIndex] += energy + oldEnergy;
-        __syncthreads();
     }
 }
 
