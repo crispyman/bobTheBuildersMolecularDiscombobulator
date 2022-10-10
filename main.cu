@@ -277,7 +277,7 @@ int checkGrid(float *ref, float *check, int gridLength, const char* kernelName) 
     for (int i = 0; i < gridLength; i++) {
         if (fequal(check[i], ref[i])) {
             printf("\e[1;31m%s\e[0m produced an incorrect value at [%d]\n",kernelName, i);
-            printf("Actual: %10f != Expected: %10f\n", check[i], ref[i]);
+            printf("Actual: %.10f != Expected: %.10f\n", check[i], ref[i]);
             return 1;
         }
     }

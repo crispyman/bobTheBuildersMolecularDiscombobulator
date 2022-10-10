@@ -10,4 +10,4 @@
 #define THREADSPERBLOCK3D 8
 #define MAXCONSTANTATOMS 150 // The max number of atoms to copy to constant memory on the device.
 
-#define PRECISIONTHRESH .001
+#define PRECISIONTHRESH .00001
