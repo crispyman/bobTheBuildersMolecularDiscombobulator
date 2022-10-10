@@ -7,6 +7,8 @@
 #include <ctype.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
 #include "molecule.h"
 #include "csvparser.h"
 #include "csvwriter.h"
@@ -59,7 +61,7 @@ int main(int argc, char * argv[])
 
     int dimX  = (int) ((abs(maxX) + PADDING) + (int) (abs(minX) + PADDING)) * (1/GRIDSPACING);
     int dimY  = (int) ((abs(maxY) + PADDING) + (int) (abs(minY) + PADDING)) * (1/GRIDSPACING);
-    int dimZ = (int) ((abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING))* (1/GRIDSPACING);
+    int dimZ = (int) ((abs(maxZ) + PADDING) + (int) (abs(minZ) + PADDING))* (1/GRIDSPACING) + 2;
 
     // Shift the coordinates of all atoms to be positive plus padding.
     for (int i = 0; i < numAtoms; i++) {
@@ -78,63 +80,93 @@ int main(int argc, char * argv[])
     printf("------\n");
     printf("CPU: \t\t\t\t%f msec\n", h_time);
 
-    // GPU
-    float * energyGrid_gpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    float * energyGrid_gpu;// = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    cudaMallocHost((void **) &energyGrid_gpu, sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_gpu);
+    sleep(1);
+    float d_time;
+    float speedup;
 
-    float d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
+//    // GPU
+//
+//
+//    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
+//
+//    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "Simple Kernel");
+//    printf("GPU (0): \t\t%f msec\n", h_time);
+//    speedup = h_time/d_time;
+//    printf("Speedup: \t\t\t%f\n", speedup);
+//    //writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpusimple.csv");
+//
+//
+//    // GPU Const
+//    d_time = 0;
+//    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+//
+//    sleep(1);
+//
+//
+//    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
+//
+//    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "1D Const Kernel");
+//    printf("GPU(1): \t\t%f msec\n", d_time);
+//    speedup = h_time/d_time;
+//    printf("Speedup: \t\t\t%f\n", speedup);
+//    writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "H2O2D.csv");
+//
+//
+//    // GPU Const 2D
+//    d_time = 0;
+//    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+//    sleep(1);
+//
+//    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 2);
+//
+//    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "2D Const Kernel");
+//    printf("GPU (2): \t\t%f msec\n", d_time);
+//    speedup = h_time/d_time;
+//    printf("Speedup: \t\t\t%f\n", speedup);
+//    //writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "gpu2D.csv");
+//
+//
+//    // GPU Const 3D
+//    d_time = 0;
+//    memset(energyGrid_gpu, 0, sizeof(float) * dimX * dimY * dimZ);
+//    sleep(1);
+//
+//    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 3);
+//
+//    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "3D Const Kernel");
+//    printf("GPU (3): \t\t%f msec\n", d_time);
+//    speedup = h_time/d_time;
+//    printf("Speedup: \t\t\t%f\n", speedup);
+//    //writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu3D.csv");
+//
 
-    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "Simple Kernel");
-    printf("GPU (0): \t\t%f msec\n", d_time);
-    float speedup = h_time/d_time;
-    printf("Speedup: \t\t\t%f\n", speedup);
-    //writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpusimple.csv");
 
 
-    // GPU Const
+    // GPU Const 3D Multi-GPU
     d_time = 0;
     memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
-
-    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
-
-    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "1D Const Kernel");
-    printf("GPU(1): \t\t%f msec\n", d_time);
-    speedup = h_time/d_time;
-    printf("Speedup: \t\t\t%f\n", speedup);
-    writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "H2O2D.csv");
+    sleep(1);
+    d_time = d_discombobulate_multi_GPU(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
 
 
-    // GPU Const 2D
-    d_time = 0;
-    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
 
-    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 2);
-
-    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "2D Const Kernel");
-    printf("GPU (2): \t\t%f msec\n", d_time);
-    speedup = h_time/d_time;
-    printf("Speedup: \t\t\t%f\n", speedup);
-    //writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "gpu2D.csv");
-
-
-    // GPU Const 3D
-    d_time = 0;
-    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
-
-    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 3);
-
-    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "3D Const Kernel");
-    printf("GPU (3): \t\t%f msec\n", d_time);
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "3D Const Kernel Multi-GPU");
+    printf("GPU (4): \t\t%f msec\n", d_time);
     speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
     //writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu3D.csv");
+    sleep(1);
+
 
 
     free(atoms); 
     //free(molecule);
 
     free(energyGrid_cpu);
-    free(energyGrid_gpu);
+    cudaFreeHost(energyGrid_gpu);
 
 
 }
@@ -229,22 +261,23 @@ void printAtoms(atom * atoms, int numAtoms) {
     fequal: Returns 1 if the two floating point values are more different than a threshold.
 */
 int fequal(float a, float b) {
-    float diff = abs(a - b);
-    if ((diff < PRECISIONTHRESH)  || (isinf(a) && isinf(b))) {
+    double diff = fabs(a - b);
+    if ((diff < PRECISIONTHRESH)  || (isinf(a) && isinf(b)) || isinf(b) && abs(a) > 1000000) {
         // Equal
         return 0;
     }
     // Not equal.
+//    printf("%.10lf %.10lf\n", diff, PRECISIONTHRESH);
+
     return 1;
 }
 
 int checkGrid(float *ref, float *check, int gridLength, const char* kernelName) {
-    float*correct = (float *) ref;
-    float*output = (float *) check;
+
     for (int i = 0; i < gridLength; i++) {
-        if (fequal(correct[i], ref[i])) {
+        if (fequal(check[i], ref[i])) {
             printf("\e[1;31m%s\e[0m produced an incorrect value at [%d]\n",kernelName, i);
-            printf("Actual: %f != Expected: %f\n", output[i], correct[i]);
+            printf("Actual: %10f != Expected: %10f\n", check[i], ref[i]);
             return 1;
         }
     }
