@@ -129,19 +129,19 @@ int main(int argc, char * argv[])
 //    //writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "gpu2D.csv");
 //
 //
-//    // GPU Const 3D
-//    d_time = 0;
-//    memset(energyGrid_gpu, 0, sizeof(float) * dimX * dimY * dimZ);
-//    sleep(1);
-//
-//    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 3);
-//
-//    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "3D Const Kernel");
-//    printf("GPU (3): \t\t%f msec\n", d_time);
-//    speedup = h_time/d_time;
-//    printf("Speedup: \t\t\t%f\n", speedup);
-//    //writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu3D.csv");
-//
+    // GPU Const 3D
+    d_time = 0;
+    memset(energyGrid_gpu, 0, sizeof(float) * dimX * dimY * dimZ);
+    sleep(1);
+
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 3);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "3D Const Kernel");
+    printf("GPU (3): \t\t%f msec\n", d_time);
+    speedup = h_time/d_time;
+    printf("Speedup: \t\t\t%f\n", speedup);
+    //writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpu3D.csv");
+
 
 
 
@@ -261,13 +261,15 @@ void printAtoms(atom * atoms, int numAtoms) {
     fequal: Returns 1 if the two floating point values are more different than a threshold.
 */
 int fequal(float a, float b) {
-    double diff = fabs(a - b);
-    if ((diff < PRECISIONTHRESH)  || (isinf(a) && isinf(b)) || isinf(b) && abs(a) > 1000000) {
+    double error = fabs(fabs(b - (double)a) / b) * 100;
+    if ((error < ERRORTHRESH)  || (isinf(a) && isinf(b)) || isinf(b) && abs(a) > 1000000 || isinf(error) && b == 0 ||
+            (b < NEARZERO && a < NEARZERO)) {
         // Equal
         return 0;
     }
     // Not equal.
-//    printf("%.10lf %.10lf\n", diff, PRECISIONTHRESH);
+    printf("error: %.10f > %.10f\n", error, ERRORTHRESH);
+    printf("%.10lf %.10lf\n", a, b);
 
     return 1;
 }
