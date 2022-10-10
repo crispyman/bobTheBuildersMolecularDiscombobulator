@@ -80,17 +80,21 @@ int main(int argc, char * argv[])
     printf("------\n");
     printf("CPU: \t\t\t\t%f msec\n", h_time);
 
-
-    // GPU
-    float * energyGrid_gpu = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    float * energyGrid_gpu;// = (float *) malloc(sizeof(float) * dimX * dimY * dimZ);
+    cudaMallocHost((void **) &energyGrid_gpu, sizeof(float) * dimX * dimY * dimZ);
     assert(energyGrid_gpu);
     sleep(1);
+    float d_time;
+    float speedup;
 
-    float d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
+    // GPU
+
+
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
 
     checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "Simple Kernel");
-    printf("GPU (0): \t\t%f msec\n", d_time);
-    float speedup = h_time/d_time;
+    printf("GPU (0): \t\t%f msec\n", h_time);
+    speedup = h_time/d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
     //writeGrid(energyGrid_gpu, dimX * dimY * dimZ, "gpusimple.csv");
 
@@ -162,7 +166,7 @@ int main(int argc, char * argv[])
     //free(molecule);
 
     free(energyGrid_cpu);
-    free(energyGrid_gpu);
+    cudaFreeHost(energyGrid_gpu);
 
 
 }
@@ -258,7 +262,7 @@ void printAtoms(atom * atoms, int numAtoms) {
 */
 int fequal(float a, float b) {
     double diff = fabs(a - b);
-    if ((diff < PRECISIONTHRESH)  || (isinf(a) && isinf(b))) {
+    if ((diff < PRECISIONTHRESH)  || (isinf(a) && isinf(b)) || isinf(b) && abs(a) > 1000000) {
         // Equal
         return 0;
     }

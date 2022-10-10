@@ -147,8 +147,10 @@ int d_discombobulate_multi_GPU(float * energyGrid, atom *atoms, int dimX, int di
     CHECK(cudaEventCreate(&stop_gpu));
 
     for (int j = 0; j < device_count; j++) {
+        cudaSetDevice(j);
         emptyKernel<<<1024, 1024>>>();
     }
+    cudaSetDevice(0);
     CHECK(cudaEventRecord(start_gpu));
 
     const int gridSize = ceil(((dimX * dimY * dimZ) / (float) device_count));
@@ -159,7 +161,7 @@ int d_discombobulate_multi_GPU(float * energyGrid, atom *atoms, int dimX, int di
 
 
     for (int j = 0; j < device_count; j++) {
-//        cudaSetDevice(j);
+        cudaSetDevice(j);
         CHECK(cudaMalloc((void **) &d_energyGrid[j], gridSize * sizeof(float)));
         //zeros GPU memory since we want a zeroed energy grid to start with
         CHECK(cudaMemset( d_energyGrid[j], 0, gridSize * sizeof(float)));
@@ -179,7 +181,7 @@ int d_discombobulate_multi_GPU(float * energyGrid, atom *atoms, int dimX, int di
     for (int i = 0; i < numAtoms / MAXCONSTANTATOMS; i++) {
         // Copy atoms to constant memory on the device.
         for (int j = 0; j < device_count; j++) {
-//            cudaSetDevice(j);
+            cudaSetDevice(j);
             CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
             d_discombulateKernelConst3DMultiGPU<<<gridDim, blockDim>>>(d_energyGrid[j], grid, gridSpacing,
                                                                        j, MAXCONSTANTATOMS);
@@ -188,7 +190,7 @@ int d_discombobulate_multi_GPU(float * energyGrid, atom *atoms, int dimX, int di
 
     }
     for (int j = 0; j < device_count; j++) {
-//            cudaSetDevice(j);
+            cudaSetDevice(j);
         if (numAtomsRemaining < MAXCONSTANTATOMS) {
             CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining],
                                      sizeof(atom) * numAtomsRemaining));
@@ -201,12 +203,12 @@ int d_discombobulate_multi_GPU(float * energyGrid, atom *atoms, int dimX, int di
 
     // Copies results to host
     for (int j = 0; j < device_count; j++) {
-//        cudaSetDevice(j);
+        cudaSetDevice(j);
         CHECK(cudaDeviceSynchronize());
         CHECK(cudaMemcpy((energyGrid + gridSize * j), d_energyGrid[j], gridSize * sizeof(float), cudaMemcpyDeviceToHost));
         CHECK(cudaFree(d_energyGrid[j]));
     }
-
+    cudaSetDevice(0);
     CHECK(cudaEventRecord(stop_gpu));
     CHECK(cudaEventSynchronize(stop_gpu));
     CHECK(cudaEventElapsedTime(&gpuMsecTime, start_gpu, stop_gpu));
