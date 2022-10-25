@@ -161,6 +161,17 @@ int main(int argc, char * argv[])
     sleep(1);
 
 
+    d_time = 0;
+    memset(energyGrid_gpu, 0 , sizeof(float) * dimX * dimY * dimZ);
+    sleep(1);
+    d_time = d_discombobulate_multi_GPU_threaded(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
+
+
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "3D Const Kernel Multi-GPU Threaded");
+    printf("GPU (5): \t\t%f msec\n", d_time);
+    speedup = h_time/d_time;
+    printf("Speedup: \t\t\t%f\n", speedup);
 
     free(atoms); 
     //free(molecule);
