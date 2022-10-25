@@ -152,7 +152,7 @@ int d_discombobulate_multi_GPU_threaded(float * energyGrid, atom *atoms, int dim
     cudaSetDevice(0);
     CHECK(cudaEventRecord(start_gpu));
 
-    for (int j = 0; j < device_count; j++) {
+    for (int j = device_count-1; j >= 0; j--) {
         threads.push_back(std::thread([&, j]() {
             cudaSetDevice(j);
 

@@ -19,7 +19,7 @@ OBJS = wrappers.o main.o csvparser.o csvwriter.o h_main.o d_main.o
 	$(NVCC) $(CC_FLAGS) $(NVCCFLAGS) $(GENCODE_FLAGS) $< -o $@
 
 main: $(OBJS) makefile
-	$(CC) $(OBJS) -L/usr/local/cuda/lib64 -lcuda -lcudart -o main
+	$(CC) $(OBJS) -L/usr/local/cuda/lib64 -lcuda -lcudart -lpthread -o main
 
 main.o: main.cu csvparser.h csvwriter.h CHECK.h wrappers.cu main.h h_main.h d_main.h molecule.h config.h makefile
 
