@@ -208,8 +208,6 @@ int d_discombobulate_multi_GPU_threaded(float * energyGrid, atom *atoms, int dim
 
 
             // Copies results to host
-
-            CHECK(cudaDeviceSynchronize());
             CHECK(cudaMemcpy((energyGrid + gridSize * j), d_energyGrid[j], gridSize * sizeof(float),
                              cudaMemcpyDeviceToHost));
             CHECK(cudaFree(d_energyGrid[j]));
@@ -297,7 +295,6 @@ int d_discombobulate_multi_GPU(float * energyGrid, atom *atoms, int dimX, int di
     // Copies results to host
     for (int j = 0; j < device_count; j++) {
         cudaSetDevice(j);
-        CHECK(cudaDeviceSynchronize());
         CHECK(cudaMemcpy((energyGrid + gridSize * j), d_energyGrid[j], gridSize * sizeof(float), cudaMemcpyDeviceToHost));
         CHECK(cudaFree(d_energyGrid[j]));
     }
