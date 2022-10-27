@@ -4,7 +4,7 @@
 */
 
 typedef struct energyGrid {
-    float * energyGrid;
+    float *energyGrid;
     float gridSpacing;
     int dimX;
     int dimY;
@@ -19,7 +19,7 @@ typedef struct atom {
 } atom;
 
 typedef struct molecule {
-    energyGrid * energyGrid;
-    atom * atoms;
-    int numAtoms; 
+    energyGrid *energyGrid;
+    atom *atoms;
+    int numAtoms;
 } molecule;

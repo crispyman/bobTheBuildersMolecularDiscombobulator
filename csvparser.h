@@ -19,26 +19,36 @@ typedef struct CsvParser {
     char *errMsg_;
     CsvRow *header_;
     FILE *fileHandler_;
-	int fromString_;
-	char *csvString_;
-	int csvStringIter_;
+    int fromString_;
+    char *csvString_;
+    int csvStringIter_;
 } CsvParser;
 
 
 // Public
 CsvParser *CsvParser_new(const char *filePath, const char *delimiter, int firstLineIsHeader);
+
 CsvParser *CsvParser_new_from_string(const char *csvString, const char *delimiter, int firstLineIsHeader);
+
 void CsvParser_destroy(CsvParser *csvParser);
+
 void CsvParser_destroy_row(CsvRow *csvRow);
+
 const CsvRow *CsvParser_getHeader(CsvParser *csvParser);
+
 CsvRow *CsvParser_getRow(CsvParser *csvParser);
+
 int CsvParser_getNumFields(const CsvRow *csvRow);
+
 const char **CsvParser_getFields(const CsvRow *csvRow);
-const char* CsvParser_getErrorMessage(CsvParser *csvParser);
+
+const char *CsvParser_getErrorMessage(CsvParser *csvParser);
 
 // Private
-CsvRow *_CsvParser_getRow(CsvParser *csvParser);    
+CsvRow *_CsvParser_getRow(CsvParser *csvParser);
+
 int _CsvParser_delimiterIsAccepted(const char *delimiter);
+
 void _CsvParser_setErrorMessage(CsvParser *csvParser, const char *errorMessage);
 
 #ifdef __cplusplus
