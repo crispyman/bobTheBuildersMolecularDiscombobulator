@@ -11,7 +11,7 @@ typedef struct energyGrid {
     int dimZ;
 } energyGrid;
 
-typedef struct atom {
+typedef struct __align__(16){
     float x;
     float y;
     float z;

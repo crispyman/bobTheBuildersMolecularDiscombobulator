@@ -81,29 +81,29 @@ int main(int argc, char *argv[]) {
     sleep(1);
     float d_time;
     float speedup;
-
-    // GPU
-    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
-
-    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "Simple Kernel");
-    printf("GPU (0): \t\t%f msec\n", h_time);
-    speedup = h_time / d_time;
-    printf("Speedup: \t\t\t%f\n", speedup);
-
-    // GPU Const
-    d_time = 0;
-    memset(energyGrid_gpu, 0, sizeof(float) * dimX * dimY * dimZ);
-
-    sleep(1);
-
-
-    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
-
-    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "1D Const Kernel");
-    printf("GPU(1): \t\t%f msec\n", d_time);
-    speedup = h_time / d_time;
-    printf("Speedup: \t\t\t%f\n", speedup);
-    writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "H2O2D.csv");
+//
+//    // GPU
+//    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
+//
+//    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "Simple Kernel");
+//    printf("GPU (0): \t\t%f msec\n", h_time);
+//    speedup = h_time / d_time;
+//    printf("Speedup: \t\t\t%f\n", speedup);
+//
+//    // GPU Const
+//    d_time = 0;
+//    memset(energyGrid_gpu, 0, sizeof(float) * dimX * dimY * dimZ);
+//
+//    sleep(1);
+//
+//
+//    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
+//
+//    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "1D Const Kernel");
+//    printf("GPU(1): \t\t%f msec\n", d_time);
+//    speedup = h_time / d_time;
+//    printf("Speedup: \t\t\t%f\n", speedup);
+//    writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "H2O2D.csv");
 
     // GPU Const 2D
     d_time = 0;
