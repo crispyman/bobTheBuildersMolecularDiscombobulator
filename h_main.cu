@@ -6,10 +6,12 @@
 #include "molecule.h"
 #include "h_main.h"
 
-void discombob(float *energyGrid, atom *atoms, int dimX, int dimY, int dimZ, float gridSpacing, int numAtoms);
+void discombob(float *energyGrid, const atom *atoms, const int dimX, const int dimY, const int dimZ,
+               const float gridSpacing, const int numAtoms);
 
 
-int discombob_on_cpu(float *energyGrid, atom *atoms, int dimX, int dimY, int dimZ, float gridSpacing, int numAtoms) {
+int discombob_on_cpu(float *energyGrid, const atom *atoms, const int dimX, const int dimY, const int dimZ,
+                     const float gridSpacing, const int numAtoms) {
 
     cudaEvent_t start_cpu, stop_cpu;
     float cpuMsecTime = -1;
@@ -26,7 +28,8 @@ int discombob_on_cpu(float *energyGrid, atom *atoms, int dimX, int dimY, int dim
     return cpuMsecTime;
 }
 
-void discombob(float *energyGrid, atom *atoms, int dimX, int dimY, int dimZ, float gridSpacing, int numAtoms) {
+void discombob(float *energyGrid, const atom *atoms, const int dimX, const int dimY, const int dimZ,
+               const float gridSpacing, const int numAtoms) {
     int i, j, k, n;
     for (k = 0; k < dimZ; k++) {
         float z = gridSpacing * (float) k;
@@ -34,15 +37,15 @@ void discombob(float *energyGrid, atom *atoms, int dimX, int dimY, int dimZ, flo
             float y = gridSpacing * (float) j;
             for (i = 0; i < dimX; i++) {
                 float x = gridSpacing * (float) i;
-                float energy = 0.0f;
+                double energy = 0.0f;
                 for (n = 0; n < numAtoms; n++) {
-                    float dx = x - atoms[n].x;
+                    double dx = x - atoms[n].x;
                     float dy = y - atoms[n].y;
                     float dz = z - atoms[n].z;
                     float charge = atoms[n].charge;
                     energy += charge / sqrt(dx * dx + dy * dy + dz * dz);
                 }
-                energyGrid[dimX * dimY * k + dimX * j + i] = energy;
+                ((float*)energyGrid)[dimX * dimY * k + dimX * j + i] = energy;
             }
         }
     }
