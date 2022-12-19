@@ -1,5 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <cuda_runtime.h>
 #include <thread>
 #include <vector>
@@ -8,20 +8,31 @@
 #include "molecule.h"
 #include "d_main.h"
 
-__global__ void d_discombulateKernel(float *energyGrid, const atom *atoms, const dim3 grid, const float gridspacing,
+__global__ void d_discombulateKernelUnoptomized(float *energyGrid, const float *atoms, const dim3 grid, const float gridspacing,
                                      const int numatoms);
+
+__global__ void d_discombulateKernelOptimized(float *energyGrid, const float *atoms, const dim3 grid, const float gridspacing,
+                                                const int numatoms);
 
 __global__ void d_discombulateKernelConst(float *energyGrid, const dim3 grid, const float gridspacing,
                                           const int numatoms);
 
-__global__ void d_discombulateKernelConst2D(float *energyGrid, const dim3 grid, const float gridspacing,
-                                            const int numatoms);
+__device__ void kernelConstHelper(float * energygrid, dim3 grid, float gridspacing, float z, int k, int numatoms);
+
+__global__ void d_discombulateKernelScatter(float *energyGrid, dim3 grid, float gridSpacing,
+                                            int numAtoms);
+
+__global__ void d_discombulateKernelGather(float *energyGrid, dim3 grid, float gridSpacing,
+                                           int numAtoms);
 
 __global__ void d_discombulateKernelConst3D(float *energyGrid, const dim3 grid, const float gridspacing,
                                             const int numatoms);
 
 __global__ void d_discombulateKernelConst3DMultiGPU(float *energyGrid, dim3 grid, const float gridSpacing,
                                                     const int gpuNum, const int numAtoms);
+
+__global__ void d_discombulateKernelCoarseningCoalescing(float *energyGrid, dim3 grid, float gridSpacing,
+                                            int numAtoms);
 
 static __global__ void emptyKernel();
 
@@ -65,73 +76,54 @@ int d_discombobulate(float *energyGrid, const atom *atoms, const int dimX, const
         CHECK(cudaMemcpy(d_atoms, atoms, numAtoms * sizeof(atom), cudaMemcpyHostToDevice));
 
         dim3 blockDim(THREADSPERBLOCK, 1, 1);
-        dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK), 1, 1);
-        d_discombulateKernel<<<gridDim, blockDim>>>(d_energyGrid, d_atoms, grid, gridSpacing, numAtoms);
+        dim3 gridDim(ceil((1.0 * dimZ) / THREADSPERBLOCK), 1, 1);
+        d_discombulateKernelUnoptomized<<<gridDim, blockDim>>>(d_energyGrid, (float *) d_atoms, grid, gridSpacing, numAtoms);
 
         CHECK(cudaFree(d_atoms));
     }
         // Same kernel as previous, but this time using constant memory for the atoms array.
     else if (which == 1) {
+        atom *d_atoms;         // The array of atoms for the device.
+        CHECK(cudaMalloc((void **) &d_atoms, numAtoms * sizeof(atom)));
+        CHECK(cudaMemcpy(d_atoms, atoms, numAtoms * sizeof(atom), cudaMemcpyHostToDevice));
+
         dim3 blockDim(THREADSPERBLOCK, 1, 1);
-        dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK), 1, 1);
+        dim3 gridDim(ceil((1.0 * dimZ) / THREADSPERBLOCK), 1, 1);
+        d_discombulateKernelOptimized<<<gridDim, blockDim>>>(d_energyGrid, (float *) d_atoms, grid, gridSpacing, numAtoms);
 
-        // Splitting the atoms array into sections to reduce the number of atoms in constant memory
-        int numAtomsRemaining = numAtoms;
-        for (int i = 0; i < numAtoms / MAXCONSTANTATOMS; i++) {
-            // Copy atoms to constant memory on the device.
-            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
-            d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
-            numAtomsRemaining -= MAXCONSTANTATOMS;
-
-        }
-        if (numAtomsRemaining < MAXCONSTANTATOMS) {
-            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining],
-                                     sizeof(atom) * numAtomsRemaining));
-            d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
-        }
+        CHECK(cudaFree(d_atoms));
     }
-        // Using a 2D kernel.
+        // Using a const kernel.
     else if (which == 2) {
-        // Define kernel dimensions outside of loop
-        dim3 blockDim(THREADSPERBLOCK2D_X, THREADSPERBLOCK2D_Y, 1);
-        dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK2D_X), ceil((1.0 * dimY) / THREADSPERBLOCK2D_Y), 1);
-        // Break the atoms array into smaller parts to allow for larger atom lists.
-        int numAtomsRemaining = numAtoms;
-        for (int i = 0; i < numAtoms / MAXCONSTANTATOMS; i++) {
-            // Copy atoms to constant memory on the device.
-            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
-            d_discombulateKernelConst2D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
-            numAtomsRemaining -= MAXCONSTANTATOMS;
+        CHECK(cudaMemcpyToSymbol(constAtoms, atoms, sizeof(atom) * MAXCONSTANTATOMS));
 
-        }
-        if (numAtomsRemaining < MAXCONSTANTATOMS) {
-            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining],
-                                     sizeof(atom) * numAtomsRemaining));
-            d_discombulateKernelConst2D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
-        }
+        dim3 blockDim(THREADSPERBLOCK, 1, 1);
+        dim3 gridDim(ceil((1.0 * dimZ) / THREADSPERBLOCK), 1, 1);
+        d_discombulateKernelConst<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtoms);
+
     }
-        // Using 3D Kernel
+        // Using scatter Kernel
     else if (which == 3) {
-        // Define the dimensions of the kernel
+
+
+        CHECK(cudaMemcpyToSymbol(constAtoms, atoms, sizeof(atom) * MAXCONSTANTATOMS));
+
+       dim3 blockDim(THREADSPERBLOCK2D_X, THREADSPERBLOCK2D_Y, 1);
+        dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK2D_X), ceil((1.0 * dimY) / THREADSPERBLOCK2D_Y), 1);
+        d_discombulateKernelScatter<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtoms);
+
+    }
+    else if (which == 4) {
+
+
+        CHECK(cudaMemcpyToSymbol(constAtoms, atoms, sizeof(atom) * MAXCONSTANTATOMS));
+
         dim3 blockDim(THREADSPERBLOCK3D_X, THREADSPERBLOCK3D_Y, THREADSPERBLOCK3D_Z);
         // Number of blocks in each direction (x, y, z) is the dimension of the block in that direction/THREADSPERBLOCK3D.
-        dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK3D_X), ceil((1.0 * dimY) / THREADSPERBLOCK3D_Y),
-                     ceil((1.0 * dimZ) / THREADSPERBLOCK3D_Z));
-        // Break the atoms array into smaller parts to allow for larger atom lists.
-        // Break the atoms array into smaller parts to allow for larger atom lists.
-        int numAtomsRemaining = numAtoms;
-        for (int i = 0; i < numAtoms / MAXCONSTANTATOMS; i++) {
-            // Copy atoms to constant memory on the device.
-            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[i * MAXCONSTANTATOMS], sizeof(atom) * MAXCONSTANTATOMS));
-            d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, MAXCONSTANTATOMS);
-            numAtomsRemaining -= MAXCONSTANTATOMS;
+        dim3 gridDim(ceil(((1.0 * dimX) / THREADSPERBLOCK3D_X) / COARSEN_FACTOR), ceil((1.0 * dimY) / THREADSPERBLOCK3D_Y),
+                 ceil((1.0 * dimZ)  / THREADSPERBLOCK3D_Z));
+        d_discombulateKernelCoarseningCoalescing<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtoms);
 
-        }
-        if (numAtomsRemaining < MAXCONSTANTATOMS) {
-            CHECK(cudaMemcpyToSymbol(constAtoms, &atoms[numAtoms - numAtomsRemaining],
-                                     sizeof(atom) * numAtomsRemaining));
-            d_discombulateKernelConst3D<<<gridDim, blockDim>>>(d_energyGrid, grid, gridSpacing, numAtomsRemaining);
-        }
     }
     // Copies results to host
     CHECK(cudaMemcpy(energyGrid, d_energyGrid, gridSize, cudaMemcpyDeviceToHost));
@@ -182,7 +174,7 @@ int d_discombobulate_multi_GPU(float *energyGrid, const atom *atoms, const int d
     // Define the dimensions of the kernel
     dim3 blockDim(THREADSPERBLOCK3D_X, THREADSPERBLOCK3D_Y, THREADSPERBLOCK3D_Z);
     // Number of blocks in each direction (x, y, z) is the dimension of the block in that direction/THREADSPERBLOCK3D.
-    dim3 gridDim(ceil((1.0 * dimX) / THREADSPERBLOCK3D_X), ceil((1.0 * dimY) / THREADSPERBLOCK3D_Y),
+    dim3 gridDim(ceil((1.0 * dimX) / (THREADSPERBLOCK3D_X / COARSEN_FACTOR)), ceil((1.0 * dimY) / THREADSPERBLOCK3D_Y),
                  ceil((1.0 * dimZ / (float) device_count) / THREADSPERBLOCK3D_Z));
     // Break the atoms array into smaller parts to allow for larger atom lists.
     // Break the atoms array into smaller parts to allow for larger atom lists.
@@ -324,38 +316,76 @@ int d_discombobulate_multi_GPU_threaded(float *energyGrid, const atom *atoms, co
     gridSpacing: the space between grid points along each axis
     numAtoms: number of atoms in atoms array
 */
-__global__ void d_discombulateKernel(float *energyGrid, const atom *atoms, dim3 grid, float gridSpacing,
+__global__ void d_discombulateKernelUnoptomized(float *energyGrid, const float *atoms, dim3 grid, float gridSpacing,
                                      int numAtoms) {
 
-    int i, j, n;
     // check to ensure thread is supposed to be doing work
-    if (blockDim.x * blockIdx.x + threadIdx.x < grid.x) {
-        float x = gridSpacing * (threadIdx.x + blockIdx.x * blockDim.x);
+    if (blockDim.x * blockIdx.x + threadIdx.x < grid.z) {
+        int k = (threadIdx.x + blockIdx.x * blockDim.x);
+        float z = gridSpacing * (float)k;
 
-        for (i = 0; i < grid.z; i++) {
-            float z = gridSpacing * (float) i;
-            for (j = 0; j < grid.y; j++) {
-                float y = gridSpacing * (float) j;
-                // Generate gridGrid index
-                int gridIndex = grid.x * grid.y * i + grid.x * j + (blockIdx.x * blockDim.x + threadIdx.x);
-                // Load energyGrid value early
+        int atomarrdim = numAtoms * 4;
+        for (int j = 0; j < (int) grid.y; j++){
+            float y = gridSpacing * (float) j;
+            for (int i = 0; i < (int) grid.x; i++){
+                float x = gridSpacing * (float) i;
                 float energy = 0.0f;
-                float oldEnergy = energyGrid[gridIndex];
-                for (n = 0; n < numAtoms; n++) {
-                    float dx = x - atoms[n].x;
-                    float dy = y - atoms[n].y;
-                    float dz = z - atoms[n].z;
-                    float charge = atoms[n].charge;
-                    energy += charge * rsqrtf(dx * dx + dy * dy + dz * dz);
-
+                for (int n = 0; n < atomarrdim; n+=4) {
+                    float dx = x - atoms[n];
+                    float dy = y - atoms[n + 1];
+                    float dz = z - atoms[n + 2];
+                    energy += atoms[n + 3] / sqrtf(dx * dx + dy * dy + dz * dz);
                 }
-                // Write the resulting energy back to the grid index.
-                energyGrid[gridIndex] = energy + oldEnergy;
-                __syncthreads();
+                energyGrid[grid.x * grid.y * k + grid.x * j + i] = energy;
             }
         }
     }
 }
+
+/*
+    d_discombobulateKernel
+    A kernel that calculates the electrostatic potential and stores it
+    in a float array
+
+    This performed about 7x better than cpu before switching to atom struct
+
+    energyGrid: A float array of the sample points in and around the molecule
+    atoms: an array of structs that have all the necessary information about each atom, see molecule.h
+    grid: a dim3 struct containing the dimensions of energyGrid
+    gridSpacing: the space between grid points along each axis
+    numAtoms: number of atoms in atoms array
+*/
+__global__ void d_discombulateKernelOptimized(float *energyGrid, const float *atoms, dim3 grid, float gridSpacing,
+                                                int numAtoms) {
+
+    // check to ensure thread is supposed to be doing work
+    if (blockDim.x * blockIdx.x + threadIdx.x < grid.z) {
+        int k = (threadIdx.x + blockIdx.x * blockDim.x);
+        float z = gridSpacing * (float)k;
+
+
+        int atomarrdim = numAtoms * 4;
+        int grid_slice_offset = (grid.x * grid.y * k);
+        for (int n = 0; n < atomarrdim; n+=4) {
+            float dz = z - atoms[n + 2];
+            float dz2 = dz * dz;
+            float charge = atoms[n+3];
+            for (int j = 0; j < (int) grid.y; j++) {
+                float y = gridSpacing * (float) j;
+                float dy = y - atoms[n + 1];
+                float dy2 = dy*dy;
+                int grid_row_offset = grid_slice_offset + grid.x*j;
+                for (int i = 0; i < (int) grid.x; i++) {
+                    float x = gridSpacing * (float) i;
+                    float dx = x - atoms[n];
+
+                    energyGrid[grid_row_offset + i] += charge / sqrtf(dx * dx + dy2 + dz2);
+                }
+            }
+        }
+    }
+}
+
 
 /*
  * d_discombobulateKernelConst
@@ -371,34 +401,141 @@ __global__ void d_discombulateKernel(float *energyGrid, const atom *atoms, dim3 
 __global__ void d_discombulateKernelConst(float *energyGrid, dim3 grid, float gridSpacing,
                                           int numAtoms) {
 
-    int i, j, n;
-    // check to ensure thread is supposed to be doing work
-    if (blockDim.x * blockIdx.x + threadIdx.x < grid.x) {
-        float x = gridSpacing * (threadIdx.x + blockIdx.x * blockDim.x);
+    int k = (threadIdx.x + blockIdx.x * blockDim.x);
+    float z = gridSpacing * (float) k;
 
-        for (i = 0; i < grid.z; i++) {
-            float z = gridSpacing * (float) i;
-            for (j = 0; j < grid.y; j++) {
-                float y = gridSpacing * (float) j;
-                int gridIndex = grid.x * grid.y * i + grid.x * j + (blockIdx.x * blockDim.x + threadIdx.x);
-                float energy = 0.0f;
-                // load early to offset loading time before use
-                float oldEnergy = energyGrid[gridIndex];
-                for (n = 0; n < numAtoms; n++) {
-                    float dx = x - constAtoms[n].x;
-                    float dy = y - constAtoms[n].y;
-                    float dz = z - constAtoms[n].z;
-                    float charge = constAtoms[n].charge;
-                    energy += charge * rsqrtf(dx * dx + dy * dy + dz * dz);
+    int grid_slice_offset = (grid.x * grid.y * z) / (float) gridSpacing;
 
-                }
-                // add old and new energy values and store them
-                energyGrid[gridIndex] = energy + oldEnergy;
-                __syncthreads();
+    for (int n = 0; n < numAtoms; n++) {
+        float dz = z - constAtoms[n].z;
+        float dz2 = dz * dz;
+        float charge = constAtoms[n].charge;
+        for (int j = 0; j < grid.y; j++) {
+            float y = gridSpacing * (float) j;
+            float dy = y - constAtoms[n].y;
+            float dy2 = dy * dy;
+            int grid_row_offset = grid_slice_offset + grid.x * j;
+            for (int i = 0; i < grid.x; i++) {
+                float x = gridSpacing * (float) i;
+                float dx = x - constAtoms[n].x;
+                energyGrid[grid_row_offset + i] += charge / sqrtf(dx * dx + dy2 + dz2);
             }
         }
     }
 }
+
+
+__global__ void d_discombulateKernelScatter(float *energyGrid, dim3 grid, float gridSpacing,
+                                          int numAtoms) {
+
+    int k = (threadIdx.x + blockIdx.x * blockDim.x);
+    float z = gridSpacing * (float) k;
+
+    int n = (blockIdx.x * blockDim.x + threadIdx.x);
+    float dz = z - constAtoms[n].z;
+    float dz2 = dz * dz;
+    int grid_slice_offset = (grid.x * grid.y * z) / gridSpacing;
+    float charge = constAtoms[n].charge;
+    for (int j = 0; j < grid.y; j++) {
+        float y = gridSpacing * (float) j;
+        float dy = y - constAtoms[n].y;
+        float dy2 = dy * dy;
+        int grid_row_offset = grid_slice_offset + grid.x * j;
+        for (int i = 0; i < grid.x; i++) {
+            float x = gridSpacing * (float) i;
+            float dx = x - constAtoms[n].x;
+            atomicAdd(&energyGrid[grid_row_offset + i], charge / sqrtf(dx * dx + dy2 + dz2));
+        }
+    }
+
+
+}
+
+
+__global__ void d_discombulateKernelGather(float *energyGrid, dim3 grid, float gridSpacing,
+                                            int numAtoms) {
+
+    if (blockDim.x * blockIdx.x + threadIdx.x < grid.z) {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        int j = blockIdx.y * blockDim.y + threadIdx.y;
+        int k = (threadIdx.x + blockIdx.x * blockDim.x);
+        float z = gridSpacing * (float) k;
+
+        float y = gridSpacing * (float) j;
+        float x = gridSpacing * (float) i;
+
+        float energy = 0.0f;
+
+        for (int n=0; n<numAtoms; n++){
+            float dx = x - constAtoms[n].x;
+            float dy = y - constAtoms[n].y;
+            float dz = z - constAtoms[n].z;
+
+            energy += constAtoms[n].charge / sqrtf(dx * dx + dy*dy + dz*dz);
+        }
+
+        energyGrid[grid.x * grid.y * k + grid.x * j + i] += energy;
+
+    }
+}
+
+__global__ void d_discombulateKernelCoarseningCoalescing(float *energyGrid, dim3 grid, float gridSpacing,
+                                            int numAtoms) {
+
+    int i = blockIdx.x * blockDim.x * COARSEN_FACTOR + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    int k = threadIdx.z + blockIdx.z * blockDim.z;
+    float z = gridSpacing * (float) k;
+    float y = gridSpacing * (float) j;
+    float x = gridSpacing * (float) i;
+
+    float energy0 = 0.0f;
+    float energy1 = 0.0f;
+    float energy2 = 0.0f;
+    float energy3 = 0.0f;
+
+    for (int n = 0; n < numAtoms; n++) {
+        float dx0 = x - constAtoms[n].x;
+        float dx1 = dx0 + blockDim.x * gridSpacing;
+        float dx2 = dx0 + 2 *  blockDim.x * gridSpacing;
+        float dx3 = dx0 + 3 *  blockDim.x * gridSpacing;
+        float dy = y - constAtoms[n].y;
+        float dz = z - constAtoms[n].z;
+        float dysqdzsq = dy*dy + dz*dz;
+        float charge = constAtoms[n].charge;
+        energy0 += charge / sqrtf(dx0*dx0 + dysqdzsq);
+        energy1 += charge / sqrtf(dx1*dx1 + dysqdzsq);
+        energy2 += charge / sqrtf(dx2*dx2 + dysqdzsq);
+        energy3 += charge / sqrtf(dx3*dx3 + dysqdzsq);
+    }
+
+    energyGrid[grid.x*grid.y*k + grid.x*j + i] += energy0;
+    energyGrid[grid.x*grid.y*k + grid.x*j + i + blockDim.x] += energy1;
+    energyGrid[grid.x*grid.y*k + grid.x*j + i + 2 * blockDim.x] += energy2;
+    energyGrid[grid.x*grid.y*k + grid.x*j + i + 3 * blockDim.x] += energy3;
+
+}
+
+__device__ void kernelConstHelper(float * energygrid, dim3 grid, float gridspacing, float z, int k, int numatoms){
+
+    int i,j,n;
+    for (j = 0; j < (int)grid.y; j++){
+        for (i = 0; i < (int)grid.x; i++){
+            int outaddr = grid.x * grid.y * k + grid.x * j + i;
+            float x = gridspacing * (float)i;
+            float y = gridspacing * (float)j;
+            float energy = energygrid[outaddr];
+            for (n = 0; n < numatoms; n++) {
+                float dx = x - constAtoms[n].x;
+                float dy = y - constAtoms[n].y;
+                float dz = z - constAtoms[n].z;
+                energy += constAtoms[n].charge * rsqrtf(dx * dx + dy * dy + dz * dz);
+            }
+            energygrid[outaddr] = energy;
+        }
+    }
+}
+
 
 /*
  * d_discombobulateKernelConst2D
@@ -435,7 +572,7 @@ __global__ void d_discombulateKernelConst2D(float *energyGrid, dim3 grid, float 
             float z = gridSpacing * (float) i;
             float energy = 0.0f;
             // load early to offset loading time before use
-            float oldEnergy = energyGrid[gridIndex];            // 
+            float oldEnergy = energyGrid[gridIndex];            //
             for (n = 0; n < numAtoms; n++) {
                 float dx = x - constAtoms[n].x;
                 float dy = y - constAtoms[n].y;
@@ -446,10 +583,11 @@ __global__ void d_discombulateKernelConst2D(float *energyGrid, dim3 grid, float 
             }
             // add old and new energy values and store them
             energyGrid[gridIndex] = energy + oldEnergy;
-            __syncthreads();
+//            __syncthreads();
         }
     }
 }
+
 
 
 __global__ void d_discombulateKernelConst3D(float *energyGrid, dim3 grid, float gridSpacing,
@@ -486,7 +624,6 @@ __global__ void d_discombulateKernelConst3D(float *energyGrid, dim3 grid, float 
         }
         // add old and new energy values and store them
         energyGrid[gridIndex] += energy + oldEnergy;
-        __syncthreads();
     }
 }
 
@@ -494,6 +631,11 @@ __global__ void d_discombulateKernelConst3DMultiGPU(float *energyGrid, dim3 grid
                                                     const int numAtoms) {
 
 /*
+    OVERALL SUMMARY:
+    Basically the same kernel as the previous constant kernel, but in this case, each thread handles
+    only one (x,y,z).
+*/
+    /*
     OVERALL SUMMARY:
     Basically the same kernel as the previous constant kernel, but in this case, each thread handles
     only one (x,y,z).

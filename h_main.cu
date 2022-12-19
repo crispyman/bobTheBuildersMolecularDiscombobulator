@@ -39,7 +39,7 @@ void discombob(float *energyGrid, const atom *atoms, const int dimX, const int d
                 float x = gridSpacing * (float) i;
                 double energy = 0.0f;
                 for (n = 0; n < numAtoms; n++) {
-                    double dx = x - atoms[n].x;
+                    float dx = x - atoms[n].x;
                     float dy = y - atoms[n].y;
                     float dz = z - atoms[n].z;
                     float charge = atoms[n].charge;

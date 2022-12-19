@@ -81,29 +81,29 @@ int main(int argc, char *argv[]) {
     sleep(1);
     float d_time;
     float speedup;
-//
-//    // GPU
-//    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
-//
-//    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "Simple Kernel");
-//    printf("GPU (0): \t\t%f msec\n", h_time);
-//    speedup = h_time / d_time;
-//    printf("Speedup: \t\t\t%f\n", speedup);
-//
-//    // GPU Const
-//    d_time = 0;
-//    memset(energyGrid_gpu, 0, sizeof(float) * dimX * dimY * dimZ);
-//
-//    sleep(1);
-//
-//
-//    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
-//
-//    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "1D Const Kernel");
-//    printf("GPU(1): \t\t%f msec\n", d_time);
-//    speedup = h_time / d_time;
-//    printf("Speedup: \t\t\t%f\n", speedup);
-//    writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "H2O2D.csv");
+
+    // GPU
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 0);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "Unopt Kernel");
+    printf("GPU (0): \t\t%f msec\n", d_time);
+    speedup = h_time / d_time;
+    printf("Speedup: \t\t\t%f\n", speedup);
+
+    // GPU Const
+    d_time = 0;
+    memset(energyGrid_gpu, 0, sizeof(float) * dimX * dimY * dimZ);
+
+    sleep(1);
+
+
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 1);
+
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "Opt Kernel");
+    printf("GPU(1): \t\t%f msec\n", d_time);
+    speedup = h_time / d_time;
+    printf("Speedup: \t\t\t%f\n", speedup);
+    writeGrid(energyGrid_gpu, dimX, dimY, dimZ, "H2O2D.csv");
 
     // GPU Const 2D
     d_time = 0;
@@ -112,19 +112,19 @@ int main(int argc, char *argv[]) {
 
     d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 2);
 
-    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "2D Const Kernel");
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "Const Kernel");
     printf("GPU (2): \t\t%f msec\n", d_time);
     speedup = h_time / d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
 
-    // GPU Const 3D
+    // GPU Const Scatter
     d_time = 0;
     memset(energyGrid_gpu, 0, sizeof(float) * dimX * dimY * dimZ);
     sleep(1);
 
     d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 3);
 
-    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "3D Const Kernel");
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "Scatter");
     printf("GPU (3): \t\t%f msec\n", d_time);
     speedup = h_time / d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
@@ -133,9 +133,9 @@ int main(int argc, char *argv[]) {
     d_time = 0;
     memset(energyGrid_gpu, 0, sizeof(float) * dimX * dimY * dimZ);
     sleep(1);
-    d_time = d_discombobulate_multi_GPU(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms);
+    d_time = d_discombobulate(energyGrid_gpu, atoms, dimX, dimY, dimZ, GRIDSPACING, numAtoms, 4);
 
-    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "3D Const Kernel Multi-GPU");
+    checkGrid(energyGrid_cpu, energyGrid_gpu, dimX * dimY * dimZ, "Gather");
     printf("GPU (4): \t\t%f msec\n", d_time);
     speedup = h_time / d_time;
     printf("Speedup: \t\t\t%f\n", speedup);
@@ -217,10 +217,10 @@ atom *readMolecule(CsvParser *csvParser, int *atomCnt) {
         // Skip any record that is not an atom.
         csvRow = CsvParser_getRow(csvParser);
         if (strcmp(*CsvParser_getFields(csvRow), "ATOM") == 0) {
-            atoms[i].x = strtof(csvRow->fields_[5], NULL);
-            atoms[i].y = strtof(csvRow->fields_[6], NULL);
-            atoms[i].z = strtof(csvRow->fields_[7], NULL);
-            atoms[i].charge = strtof(csvRow->fields_[8], NULL);
+            atoms[i].x = strtof(csvRow->fields_[5], nullptr);
+            atoms[i].y = strtof(csvRow->fields_[6], nullptr);
+            atoms[i].z = strtof(csvRow->fields_[7], nullptr);
+            atoms[i].charge = strtof(csvRow->fields_[8], nullptr);
             CsvParser_destroy_row(csvRow);
         }
     }
